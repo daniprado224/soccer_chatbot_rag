@@ -163,10 +163,10 @@
   <div class="card">
     <h2>How to read an answer</h2>
     <ol>
-      <li>Answer cites Law numbers when it's confident — click through the README's eval report to see how often that citation is actually correct (spoiler: it's an honest, imperfect number, not a marketing one).</li>
-      <li>"I don't know" is a deliberate, correct response for out-of-scope questions (ice hockey, refereeing salaries, etc.) — the pipeline is built to refuse rather than hallucinate.</li>
-      <li>This demo runs on Google Gemini's free tier, shared across every visitor — see the tracker above and the README's "why Gemini, not Claude" section for why that means occasional pauses.</li>
-      <li>Every answer includes a "Retrieval ranking" you can expand — the actual cosine-similarity scores the retriever computed, not a simplified summary. When the pipeline can't answer, it also tries alternate phrasings and shows one that scores measurably higher, if one exists — see the README's "How retrieval scoring works" for the exact math and an honest caveat about what a higher score does and doesn't mean.</li>
+      <li>Answers cite Law numbers when confident — see the <a href="https://github.com/daniprado224/soccer_chatbot_rag/blob/main/eval_report.md" target="_blank" rel="noopener">eval report</a> for how often that citation is actually correct.</li>
+      <li>"I don't know" is the correct response for out-of-scope questions — it refuses rather than hallucinates.</li>
+      <li>This demo runs on Google Gemini's free tier, shared across every visitor (see the tracker above and the README's "Design choices" section).</li>
+      <li>Expand "Retrieval ranking" under an answer to see the actual scores used. When it can't answer, it also suggests a rephrasing that scores higher — a higher score means closer wording to the source text, not necessarily a better answer.</li>
     </ol>
   </div>
 
@@ -285,7 +285,7 @@ function renderSuggestion(suggestion) {
       <div class="phrasing">"${escapeHtml(suggestion.suggested_phrasing)}"</div>
       <div class="scores">Top retrieval score: ${suggestion.original_top_score.toFixed(4)} → ${suggestion.suggested_top_score.toFixed(4)} (+${delta}%)</div>
       <button class="try-suggestion">Try this phrasing</button>
-      <span class="caveat">A higher score means this phrasing matches the corpus's own wording more closely — it does NOT guarantee a more correct answer (see README's "How retrieval scoring works" for why, including a case where this is measurably true).</span>
+      <span class="caveat">A higher score means this phrasing matches the corpus's own wording more closely — it does NOT guarantee a more correct answer. See the README's "Design choices" section for why.</span>
     </div>`;
 }
 
