@@ -164,7 +164,7 @@
     <h2>How to read an answer</h2>
     <ol>
       <li>Answers cite Law numbers when confident — see the <a href="https://github.com/daniprado224/soccer_chatbot_rag/blob/main/eval_report.md" target="_blank" rel="noopener">eval report</a> for how often that citation is actually correct.</li>
-      <li>"I don't know" is the correct response for out-of-scope questions — it refuses rather than hallucinates.</li>
+      <li>"I don't know" is the correct response for out-of-scope questions.</li>
       <li>This demo runs on Google Gemini's free tier, shared across every visitor (see the tracker above and the README's "Design choices" section).</li>
       <li>Expand "Retrieval ranking" under an answer to see the actual scores used. When it can't answer, it also suggests a rephrasing that scores higher — a higher score means closer wording to the source text, not necessarily a better answer.</li>
     </ol>
@@ -188,7 +188,7 @@ const EXAMPLES = [
   "How many players are on each team?",
   "Is it a handball if the ball hits a natural arm position?",
   "What is an offside?",
-  "What was the final score of the 2022 World Cup final?",
+  "When are penalty kicks granted?"
 ];
 
 const examplesEl = document.getElementById("examples");
