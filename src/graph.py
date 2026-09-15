@@ -13,23 +13,16 @@ its own training data.
 """
 from __future__ import annotations
 
-import json
 import os
-import re
-from dataclasses import dataclass, field
 from typing import TypedDict
 
 from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
 
+from .llm import DEFAULT_MODEL, GRADER_MODEL, call_llm, extract_json
+
 load_dotenv()
 
-DEFAULT_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5")
-# Grading is a cheap binary classification per chunk; a smaller/faster
-# model keeps eval runs (k grading calls per question) fast and cheap
-# without changing generation quality. Override if you want one model
-# for everything.
-GRADER_MODEL = os.getenv("CLAUDE_GRADER_MODEL", "claude-haiku-4-5-20251001")
 TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
 MIN_RELEVANT = int(os.getenv("RELEVANCE_MIN_RELEVANT", "1"))
 MAX_RETRIES = 1
@@ -56,36 +49,12 @@ class GraphState(TypedDict):
     answerable: bool
 
 
-def _get_claude_client():
-    import anthropic
-
-    # Org-scoped (not workspace-scoped) API keys require an explicit
-    # anthropic-workspace-id header on every request.
-    workspace_id = os.getenv("ANTHROPIC_WORKSPACE_ID")
-    headers = {"anthropic-workspace-id": workspace_id} if workspace_id else None
-    return anthropic.Anthropic(default_headers=headers)  # reads ANTHROPIC_API_KEY from env
-
-
-def _extract_json(text: str) -> dict:
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        raise ValueError(f"No JSON object found in model output: {text!r}")
-    return json.loads(match.group(0))
-
-
-def _call_claude(system: str, user: str, model: str, max_tokens: int = 1024) -> str:
-    client = _get_claude_client()
-    resp = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    return "".join(block.text for block in resp.content if block.type == "text")
-
-
 class RetrievalGraph:
-    """Wraps a Chroma retriever + Claude grading/generation into a LangGraph app."""
+    """Wraps a Chroma retriever + LLM grading/generation into a LangGraph app.
+
+    The LLM backend (Claude by default, Gemini as a free-tier alternative)
+    is selected globally via src/llm.py -- this class just calls call_llm().
+    """
 
     def __init__(self, vectorstore, top_k: int = TOP_K, generation_model: str = DEFAULT_MODEL,
                  grader_model: str = GRADER_MODEL):
@@ -136,8 +105,8 @@ class RetrievalGraph:
             f"Passage (Law {chunk['law_number']} - {chunk['section_title']}):\n{chunk['text']}"
         )
         try:
-            raw = _call_claude(system, user, self.grader_model, max_tokens=20)
-            return bool(_extract_json(raw).get("relevant", False))
+            raw = call_llm(system, user, self.grader_model, max_tokens=20)
+            return bool(extract_json(raw).get("relevant", False))
         except Exception:
             # Fail closed: an ungraded chunk is treated as not relevant
             # rather than silently passed through to generation.
@@ -159,8 +128,8 @@ class RetrievalGraph:
         )
         user = f"Original question: {state['question']}\nNo relevant passages were found for it."
         try:
-            raw = _call_claude(system, user, self.generation_model, max_tokens=200)
-            rewritten = _extract_json(raw).get("rewritten_question", state["question"])
+            raw = call_llm(system, user, self.generation_model, max_tokens=200)
+            rewritten = extract_json(raw).get("rewritten_question", state["question"])
         except Exception:
             rewritten = state["question"]
         return {"question": rewritten, "retry_count": state["retry_count"] + 1}
@@ -191,8 +160,8 @@ class RetrievalGraph:
         )
         user = f"Context:\n{context}\n\nQuestion: {state['original_question']}"
         try:
-            raw = _call_claude(system, user, self.generation_model, max_tokens=800)
-            parsed = _extract_json(raw)
+            raw = call_llm(system, user, self.generation_model, max_tokens=800)
+            parsed = extract_json(raw)
             return {
                 "answer": parsed.get("answer", ""),
                 "cited_laws": [str(x) for x in parsed.get("cited_laws", [])],

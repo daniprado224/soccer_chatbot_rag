@@ -1,6 +1,6 @@
 """Graph-wiring tests: no real Claude/Chroma calls.
 
-Monkeypatches src.graph._call_claude and swaps in a fake vectorstore so the
+Monkeypatches src.graph.call_llm and swaps in a fake vectorstore so the
 LangGraph state machine (retrieve -> grade -> rewrite/answer) is verified
 in isolation from any network or API key requirement.
 """
@@ -40,7 +40,7 @@ def test_answers_directly_when_first_retrieval_is_relevant(monkeypatch):
             return json.dumps({"relevant": True})
         return json.dumps({"answer": "Eleven players per team (Law 3).", "cited_laws": ["3"], "answerable": True})
 
-    monkeypatch.setattr(graph_mod, "_call_claude", fake_call)
+    monkeypatch.setattr(graph_mod, "call_llm", fake_call)
 
     rg = RetrievalGraph(store)
     result = rg.query("how many players?")
@@ -69,7 +69,7 @@ def test_rewrites_and_retries_once_when_first_pass_finds_nothing(monkeypatch):
             return json.dumps({"relevant": relevant})
         return json.dumps({"answer": "Offside explanation (Law 11).", "cited_laws": ["11"], "answerable": True})
 
-    monkeypatch.setattr(graph_mod, "_call_claude", fake_call)
+    monkeypatch.setattr(graph_mod, "call_llm", fake_call)
 
     rg = RetrievalGraph(store)
     result = rg.query("ambiguous q")
@@ -94,7 +94,7 @@ def test_says_i_dont_know_when_nothing_relevant_even_after_retry(monkeypatch):
             return json.dumps({"relevant": False})
         raise AssertionError("answer generation should not be called with no relevant chunks")
 
-    monkeypatch.setattr(graph_mod, "_call_claude", fake_call)
+    monkeypatch.setattr(graph_mod, "call_llm", fake_call)
 
     rg = RetrievalGraph(store)
     result = rg.query("no coverage question")

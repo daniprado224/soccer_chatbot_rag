@@ -30,9 +30,21 @@ instead of glossed over:
 - **Source PDFs**: `theifab.com` and `fifa.com` were also blocked from the
   build sandbox, so ingestion could not download them automatically. You
   supply the PDFs (see [Data](#data)).
+- **LLM backend for grading/generation**: the spec calls for Claude, and
+  that's still the default (`LLM_BACKEND=claude`). But the Anthropic
+  Console account this was built against has no credit balance, and its
+  free evaluation tier doesn't cover live API calls -- so `src/llm.py`
+  also wires in **Gemini** (`LLM_BACKEND=gemini`) as a genuinely free
+  alternative (a Google AI Studio key needs no payment method), purely so
+  a real eval run was possible at all. This is a real model swap, not an
+  infra detail: eval numbers produced under `LLM_BACKEND=gemini` measure
+  Gemini's grading/generation quality, not Claude's. The README's eval
+  results section says which backend actually produced them.
 - **Eval numbers below are only real once you've run `src/eval.py` yourself**
-  against the actual Laws of the Game PDF and a valid `ANTHROPIC_API_KEY`.
-  Anything still marked "pending" is not a completed feature.
+  against the actual Laws of the Game PDF with a working LLM backend
+  (either `ANTHROPIC_API_KEY` with Console credits, or a free
+  `GEMINI_API_KEY`). Anything still marked "pending" is not a completed
+  feature.
 
 ## Architecture
 
@@ -192,6 +204,23 @@ and `pip install langchain-openai`. Nothing else changes — `graph.py` and
 `ingestion.py` only depend on the LangChain `Embeddings` interface. Note:
 switching backends means re-running ingestion (embedding spaces aren't
 compatible across backends).
+
+## Swapping the LLM backend (grading + generation)
+
+Set in `.env`:
+
+```
+LLM_BACKEND=gemini
+GEMINI_API_KEY=...   # free at https://aistudio.google.com/apikey
+```
+
+or back to `LLM_BACKEND=claude` with `ANTHROPIC_API_KEY` (and Console
+credits). Nothing in `graph.py` changes either way — both backends live in
+`src/llm.py` behind one `call_llm(system, user, model, max_tokens)`
+function. This is the one piece of this repo that deviates from the
+original spec's "Claude API" requirement, and only because of a real
+constraint (no Console credit balance) rather than preference — see the
+[status notes](#status--honesty-notes-read-this-first) at the top.
 
 ## Evaluation
 
