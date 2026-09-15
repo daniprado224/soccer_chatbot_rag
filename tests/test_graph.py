@@ -10,7 +10,21 @@ import pytest
 from langchain_core.documents import Document
 
 import src.graph as graph_mod
-from src.graph import RetrievalGraph
+from src.graph import RetrievalGraph, _normalize_law_number
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("3", "3"),
+        ("Law 3", "3"),
+        ("Article 15", "15"),
+        ("law no. 12", "12"),
+        ("Section 4", "4"),
+    ],
+)
+def test_normalize_law_number_strips_non_numeric_formatting(raw, expected):
+    assert _normalize_law_number(raw) == expected
 
 
 class FakeVectorStore:

@@ -14,6 +14,7 @@ its own training data.
 from __future__ import annotations
 
 import os
+import re
 from typing import TypedDict
 
 from dotenv import load_dotenv
@@ -36,6 +37,20 @@ class RetrievedChunk(TypedDict):
     source_doc: str
     score: float
     relevant: bool | None
+
+
+def _normalize_law_number(value: str) -> str:
+    """Extract a bare law number from a citation, regardless of how the LLM
+    formatted it ("Law 3", "Art. 3", "3", "law no. 3" all -> "3").
+
+    Prompted output format isn't reliable across models -- Gemini in
+    particular returned "Law 3" instead of the requested "3" during manual
+    testing -- and downstream eval matching compares against bare numbers
+    from qa_pairs.json, so normalize defensively rather than trust the
+    prompt alone.
+    """
+    match = re.search(r"\d+", str(value))
+    return match.group(0) if match else str(value).strip()
 
 
 class GraphState(TypedDict):
@@ -164,7 +179,7 @@ class RetrievalGraph:
             parsed = extract_json(raw)
             return {
                 "answer": parsed.get("answer", ""),
-                "cited_laws": [str(x) for x in parsed.get("cited_laws", [])],
+                "cited_laws": [_normalize_law_number(x) for x in parsed.get("cited_laws", [])],
                 "answerable": bool(parsed.get("answerable", True)),
             }
         except Exception as e:

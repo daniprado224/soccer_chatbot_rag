@@ -25,7 +25,7 @@ LLM_BACKEND = os.getenv("LLM_BACKEND", "claude").lower()
 # Model name defaults are backend-specific -- e.g. a Claude model name
 # while LLM_BACKEND=gemini would just 404, and vice versa.
 if LLM_BACKEND == "gemini":
-    DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
     # Flash is already cheap/fast enough to use for grading too, unlike
     # the Claude default where grading gets its own smaller model.
     GRADER_MODEL = os.getenv("GEMINI_GRADER_MODEL", DEFAULT_MODEL)
@@ -66,7 +66,15 @@ def _call_gemini(system: str, user: str, model: str, max_tokens: int) -> str:
     resp = client.models.generate_content(
         model=model,
         contents=user,
-        config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens),
+        config=types.GenerateContentConfig(
+            system_instruction=system,
+            max_output_tokens=max_tokens,
+            # Flash models "think" (hidden reasoning tokens) by default,
+            # which can consume the entire max_output_tokens budget before
+            # any visible text is produced -- these are short structured
+            # classification/JSON tasks with no need for chain-of-thought.
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+        ),
     )
     return resp.text or ""
 
