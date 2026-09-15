@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
+import time
 
 LLM_BACKEND = os.getenv("LLM_BACKEND", "claude").lower()
 
@@ -58,25 +60,53 @@ def _call_claude(system: str, user: str, model: str, max_tokens: int) -> str:
     return "".join(block.text for block in resp.content if block.type == "text")
 
 
+# The free tier enforces a per-minute request cap (observed: 15 req/min
+# for gemini-3.1-flash-lite) in addition to whatever daily cap it also
+# has. eval.py fires calls back-to-back with no natural spacing, so
+# without this a multi-question run reliably blows through it after a
+# handful of questions. Paced to ~10/min (6s apart) to leave margin rather
+# than ride the exact limit, plus one retry on a 429 since a burst from
+# some other process against the same key/project could still trip it.
+_GEMINI_MIN_INTERVAL_SECONDS = float(os.getenv("GEMINI_MIN_INTERVAL_SECONDS", "6"))
+_gemini_call_lock = threading.Lock()
+_gemini_last_call_time = 0.0
+
+
+def _throttle_gemini() -> None:
+    global _gemini_last_call_time
+    with _gemini_call_lock:
+        wait = _gemini_last_call_time + _GEMINI_MIN_INTERVAL_SECONDS - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _gemini_last_call_time = time.monotonic()
+
+
 def _call_gemini(system: str, user: str, model: str, max_tokens: int) -> str:
     from google import genai
     from google.genai import types
+    from google.genai.errors import ClientError
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))  # free tier via aistudio.google.com
-    resp = client.models.generate_content(
-        model=model,
-        contents=user,
-        config=types.GenerateContentConfig(
-            system_instruction=system,
-            max_output_tokens=max_tokens,
-            # Flash models "think" (hidden reasoning tokens) by default,
-            # which can consume the entire max_output_tokens budget before
-            # any visible text is produced -- these are short structured
-            # classification/JSON tasks with no need for chain-of-thought.
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
-        ),
+    config = types.GenerateContentConfig(
+        system_instruction=system,
+        max_output_tokens=max_tokens,
+        # Flash models "think" (hidden reasoning tokens) by default, which
+        # can consume the entire max_output_tokens budget before any
+        # visible text is produced -- these are short structured
+        # classification/JSON tasks with no need for chain-of-thought.
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
     )
-    return resp.text or ""
+
+    for attempt in range(2):
+        _throttle_gemini()
+        try:
+            resp = client.models.generate_content(model=model, contents=user, config=config)
+            return resp.text or ""
+        except ClientError as e:
+            if "RESOURCE_EXHAUSTED" in str(e) and attempt == 0:
+                time.sleep(15)  # one retry past a transient per-minute cap; a daily cap will still raise
+                continue
+            raise
 
 
 def call_llm(system: str, user: str, model: str, max_tokens: int = 1024) -> str:
