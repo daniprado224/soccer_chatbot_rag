@@ -51,7 +51,7 @@ def test_answers_directly_when_first_retrieval_is_relevant(monkeypatch):
 
     def fake_call(system, user, model, max_tokens=1024):
         if "relevance grader" in system:
-            return json.dumps({"relevant": True})
+            return json.dumps({"relevant": [True]})
         return json.dumps({"answer": "Eleven players per team (Law 3).", "cited_laws": ["3"], "answerable": True})
 
     monkeypatch.setattr(graph_mod, "call_llm", fake_call)
@@ -80,7 +80,7 @@ def test_rewrites_and_retries_once_when_first_pass_finds_nothing(monkeypatch):
             return json.dumps({"rewritten_question": "rewritten q"})
         if "relevance grader" in system:
             relevant = "Offside" in user
-            return json.dumps({"relevant": relevant})
+            return json.dumps({"relevant": [relevant]})
         return json.dumps({"answer": "Offside explanation (Law 11).", "cited_laws": ["11"], "answerable": True})
 
     monkeypatch.setattr(graph_mod, "call_llm", fake_call)
@@ -105,7 +105,7 @@ def test_says_i_dont_know_when_nothing_relevant_even_after_retry(monkeypatch):
         if "rewrites football" in system:
             return json.dumps({"rewritten_question": "rewritten no coverage"})
         if "relevance grader" in system:
-            return json.dumps({"relevant": False})
+            return json.dumps({"relevant": [False]})
         raise AssertionError("answer generation should not be called with no relevant chunks")
 
     monkeypatch.setattr(graph_mod, "call_llm", fake_call)
@@ -117,3 +117,27 @@ def test_says_i_dont_know_when_nothing_relevant_even_after_retry(monkeypatch):
     assert result["cited_laws"] == []
     assert "don't know" in result["answer"].lower()
     assert result["retry_count"] == 1  # retried exactly once, not looped forever
+
+
+def test_grading_api_failure_is_flagged_distinctly_from_a_real_refusal(monkeypatch):
+    # This is the exact failure mode that hit a real Gemini free-tier quota
+    # exhaustion during manual testing: every grading call raised, and
+    # without grading_error, the report would have shown a plain
+    # "over_refusal" indistinguishable from the model genuinely deciding
+    # nothing was relevant.
+    store = FakeVectorStore(
+        {"q": [(_doc("3", "Number of Players", "A team has eleven players."), 0.1)]}
+    )
+
+    def fake_call(system, user, model, max_tokens=1024):
+        if "relevance grader" in system:
+            raise RuntimeError("429 RESOURCE_EXHAUSTED")
+        raise AssertionError("answer generation should not be called with no relevant chunks")
+
+    monkeypatch.setattr(graph_mod, "call_llm", fake_call)
+
+    rg = RetrievalGraph(store)
+    result = rg.query("q")
+
+    assert result["answerable"] is False
+    assert result["grading_error"] is True

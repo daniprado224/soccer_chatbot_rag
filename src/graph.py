@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from typing import TypedDict
 
 from dotenv import load_dotenv
@@ -62,6 +63,17 @@ class GraphState(TypedDict):
     answer: str
     cited_laws: list[str]
     answerable: bool
+    # True when the grading/generation LLM call itself raised (rate limit,
+    # quota, network) rather than the model genuinely deciding "not
+    # relevant" / "I don't know". Without this, an API outage is
+    # indistinguishable from a real model judgment in eval.py's failure
+    # attribution -- which is exactly what happened running this against a
+    # Gemini free-tier account that hit its daily quota mid-eval: every
+    # grading call failed closed, and the report would have silently
+    # blamed the model for a 100% over-refusal rate that was actually a
+    # 100% API-error rate.
+    grading_error: bool
+    generation_error: bool
 
 
 class RetrievalGraph:
@@ -99,33 +111,47 @@ class RetrievalGraph:
         return {"retrieved": retrieved}
 
     def _grade(self, state: GraphState) -> dict:
+        chunks = state["retrieved"]
+        if not chunks:
+            return {"relevant_chunks": [], "grading_error": False}
+
+        # One batched call grading all k chunks at once, rather than k
+        # separate calls -- cuts LLM call volume ~k-fold, which matters a
+        # lot on a free-tier quota (see grading_error's docstring above).
+        passages = "\n\n".join(
+            f"[{i}] Law {c['law_number']} - {c['section_title']}:\n{c['text']}"
+            for i, c in enumerate(chunks)
+        )
+        system = (
+            "You are a strict relevance grader for a rules-lookup RAG system. "
+            "Given a question and several numbered passages, decide for EACH "
+            "passage whether it could help answer the question -- even "
+            'partially. Respond with ONLY a JSON object: {"relevant": '
+            "[true, false, ...]} with exactly one boolean per passage, in "
+            "the same order as given."
+        )
+        user = f"Question: {state['original_question']}\n\nPassages:\n{passages}"
+
+        grading_error = False
+        try:
+            raw = call_llm(system, user, self.grader_model, max_tokens=20 + 5 * len(chunks))
+            labels = extract_json(raw).get("relevant", [])
+        except Exception as e:
+            # Fail closed: on error, every chunk is treated as not relevant
+            # rather than silently passed through to generation -- but
+            # flagged as an infra failure, not a real grading decision.
+            print(f"[graph] grading call failed ({e}); treating all chunks as not relevant", file=sys.stderr)
+            labels = []
+            grading_error = True
+
         graded: list[RetrievedChunk] = []
-        for chunk in state["retrieved"]:
-            label = self._grade_one(state["original_question"], chunk)
+        for i, chunk in enumerate(chunks):
+            label = bool(labels[i]) if i < len(labels) else False
             chunk = dict(chunk)
             chunk["relevant"] = label
             if label:
                 graded.append(chunk)
-        return {"relevant_chunks": graded}
-
-    def _grade_one(self, question: str, chunk: RetrievedChunk) -> bool:
-        system = (
-            "You are a strict relevance grader for a rules-lookup RAG system. "
-            "Given a question and one retrieved passage, answer whether the "
-            "passage could help answer the question -- even partially. "
-            'Respond with ONLY a JSON object: {"relevant": true} or {"relevant": false}.'
-        )
-        user = (
-            f"Question: {question}\n\n"
-            f"Passage (Law {chunk['law_number']} - {chunk['section_title']}):\n{chunk['text']}"
-        )
-        try:
-            raw = call_llm(system, user, self.grader_model, max_tokens=20)
-            return bool(extract_json(raw).get("relevant", False))
-        except Exception:
-            # Fail closed: an ungraded chunk is treated as not relevant
-            # rather than silently passed through to generation.
-            return False
+        return {"relevant_chunks": graded, "grading_error": grading_error}
 
     def _should_rewrite(self, state: GraphState) -> str:
         if len(state["relevant_chunks"]) >= MIN_RELEVANT:
@@ -159,6 +185,7 @@ class RetrievalGraph:
                 ),
                 "cited_laws": [],
                 "answerable": False,
+                "generation_error": False,
             }
 
         context = "\n\n---\n\n".join(
@@ -181,12 +208,15 @@ class RetrievalGraph:
                 "answer": parsed.get("answer", ""),
                 "cited_laws": [_normalize_law_number(x) for x in parsed.get("cited_laws", [])],
                 "answerable": bool(parsed.get("answerable", True)),
+                "generation_error": False,
             }
         except Exception as e:
+            print(f"[graph] generation call failed: {e}", file=sys.stderr)
             return {
                 "answer": f"Generation failed: {e}",
                 "cited_laws": [],
                 "answerable": False,
+                "generation_error": True,
             }
 
     # ---- graph wiring ----
@@ -215,6 +245,8 @@ class RetrievalGraph:
             "answer": "",
             "cited_laws": [],
             "answerable": True,
+            "grading_error": False,
+            "generation_error": False,
         }
         return self.app.invoke(initial)
 

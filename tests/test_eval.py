@@ -41,6 +41,7 @@ def _base_result(**overrides) -> QuestionResult:
         citation_overlap=True,
         citation_exact=True,
         answerability_correct=True,
+        llm_error=False,
         failure_mode="",
     )
     defaults.update(overrides)
@@ -50,6 +51,22 @@ def _base_result(**overrides) -> QuestionResult:
 def test_classify_failure_passing_case():
     r = _base_result()
     assert _classify_failure(r) == "none"
+
+
+def test_classify_failure_llm_error_overrides_everything_else():
+    # Even a result that otherwise looks like a passing case must be
+    # classified as an infra failure, not "none" -- a grading/generation
+    # API error is never a real model judgment.
+    r = _base_result(llm_error=True)
+    assert _classify_failure(r) == "llm_error"
+
+    r_unanswerable = _base_result(
+        llm_error=True,
+        expected_law_numbers=[],
+        expected_answerable=False,
+        answerability_correct=True,
+    )
+    assert _classify_failure(r_unanswerable) == "llm_error"
 
 
 def test_classify_failure_retrieval_failure_when_recall_zero():

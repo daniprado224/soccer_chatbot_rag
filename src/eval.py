@@ -62,10 +62,19 @@ class QuestionResult:
     citation_overlap: bool | None  # any overlap between cited and expected laws
     citation_exact: bool | None  # exact set match
     answerability_correct: bool
-    failure_mode: str  # "none" | "retrieval" | "generation" | "hallucination" | "over_refusal"
+    llm_error: bool  # grading or generation call itself raised (rate limit/quota/network)
+    failure_mode: str  # "none" | "retrieval" | "generation" | "hallucination" | "over_refusal" | "llm_error"
 
 
 def _classify_failure(r: "QuestionResult") -> str:
+    # An API/infra failure is not a real model judgment -- classify it as
+    # its own bucket rather than let it masquerade as "the model refused"
+    # or "the model hallucinated". This distinction exists because it
+    # already happened once: a Gemini free-tier quota ran out mid-eval and
+    # every grading call failed closed, which would have been silently
+    # reported as a 100% over-refusal rate without this check.
+    if r.llm_error:
+        return "llm_error"
     if r.expected_answerable:
         if r.answerability_correct and r.citation_overlap:
             return "none"
@@ -112,6 +121,7 @@ def run_eval(graph, qa_pairs: list[dict], top_k: int) -> list[QuestionResult]:
             citation_overlap=citation_overlap,
             citation_exact=citation_exact,
             answerability_correct=answerability_correct,
+            llm_error=bool(graph_result.get("grading_error") or graph_result.get("generation_error")),
             failure_mode="",
         )
         r.failure_mode = _classify_failure(r)
@@ -178,10 +188,14 @@ def render_markdown_report(results: list[QuestionResult], top_k: int) -> str:
     lines.append("- `retrieval`: the correct law was never in the top-k at all (recall@k = 0)")
     lines.append("- `generation`: the correct law WAS retrieved, but the final answer didn't cite it")
     lines.append("- `over_refusal`: an answerable question was refused (\"I don't know\")")
-    lines.append("- `hallucination`: an out-of-corpus question was answered instead of refused\n")
+    lines.append("- `hallucination`: an out-of-corpus question was answered instead of refused")
+    lines.append(
+        "- `llm_error`: the grading or generation API call itself failed (rate limit, quota, "
+        "network) -- NOT a real model judgment, and should be re-run rather than trusted\n"
+    )
     lines.append("| Failure mode | count |")
     lines.append("|---|---|")
-    for mode in ["retrieval", "generation", "over_refusal", "hallucination"]:
+    for mode in ["retrieval", "generation", "over_refusal", "hallucination", "llm_error"]:
         n = sum(1 for r in results if r.failure_mode == mode)
         if n:
             lines.append(f"| {mode} | {n} |")
