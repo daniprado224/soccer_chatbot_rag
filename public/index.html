@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Soccer Rules RAG</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #e4e2dd;
+    --accent: #1f6f3f;
+    --accent-ink: #ffffff;
+    --pill-ok-bg: #e6f4ea;
+    --pill-ok-ink: #1e7e34;
+    --pill-bad-bg: #fdecea;
+    --pill-bad-ink: #b3261e;
+    --chip-bg: #eef2ff;
+    --chip-ink: #33418f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171a;
+      --panel: #1e2125;
+      --ink: #eaeaea;
+      --muted: #9a9a9a;
+      --border: #33373d;
+      --accent: #4caf7d;
+      --accent-ink: #0c1210;
+      --pill-ok-bg: #10301e;
+      --pill-ok-ink: #6fe0a0;
+      --pill-bad-bg: #3a1414;
+      --pill-bad-ink: #ff8c82;
+      --chip-bg: #232a44;
+      --chip-ink: #b7c2ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding-block: 28px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding-inline: 20px; }
+
+  header h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  .synopsis { color: var(--muted); font-size: 0.95rem; line-height: 1.5; margin: 0 0 18px; }
+
+  .tracker {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 16px; margin-bottom: 20px; font-size: 0.9rem;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 0.82rem;
+  }
+  .pill.ok { background: var(--pill-ok-bg); color: var(--pill-ok-ink); }
+  .pill.bad { background: var(--pill-bad-bg); color: var(--pill-bad-ink); }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .tracker .count { color: var(--muted); }
+  .tracker .note { color: var(--muted); font-size: 0.82rem; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 0.95rem; margin: 0 0 8px; }
+  .card p { color: var(--muted); font-size: 0.88rem; line-height: 1.55; margin: 0; }
+  .card ol { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin: 8px 0 0; padding-left: 18px; }
+
+  textarea {
+    width: 100%; min-height: 72px; resize: vertical;
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+    font-size: 0.95rem; font-family: inherit; background: var(--panel); color: var(--ink);
+  }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+  .example-chip {
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+    border-radius: 999px; padding: 5px 12px; font-size: 0.8rem; cursor: pointer;
+  }
+  .example-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  button.ask {
+    background: var(--accent); color: var(--accent-ink); border: none;
+    border-radius: 10px; padding: 11px 20px; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer;
+  }
+  button.ask:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .answer { margin-top: 18px; }
+  .answer .law-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+  .law-chip {
+    background: var(--chip-bg); color: var(--chip-ink);
+    border-radius: 999px; padding: 3px 10px; font-size: 0.78rem; font-weight: 600;
+  }
+  .answer-text { line-height: 1.6; font-size: 0.98rem; white-space: pre-wrap; }
+  .answer.unanswerable .answer-text { color: var(--muted); font-style: italic; }
+  .error-box {
+    background: var(--pill-bad-bg); color: var(--pill-bad-ink);
+    border-radius: 10px; padding: 12px 14px; font-size: 0.9rem;
+  }
+
+  footer { margin-top: 24px; color: var(--muted); font-size: 0.8rem; text-align: center; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚽ Soccer Rules RAG</h1>
+    <p class="synopsis">
+      Ask a question about the IFAB Laws of the Game. This is a retrieval-augmented
+      chatbot: it searches the actual rulebook text, has an LLM judge which passages
+      are genuinely relevant, retries with a rewritten question if nothing relevant
+      turns up, then answers <strong>citing the specific Law number(s)</strong> it used
+      — or says it doesn't know, rather than guessing. See the
+      <a href="https://github.com/daniprado224/soccer_chatbot_rag" target="_blank" rel="noopener">README</a>
+      for the architecture and a full evaluation report.
+    </p>
+  </header>
+
+  <div class="tracker" id="tracker">
+    <span class="pill ok" id="tracker-pill"><span class="dot"></span><span id="tracker-label">Checking…</span></span>
+    <span class="count" id="tracker-count"></span>
+    <span class="note" id="tracker-note"></span>
+  </div>
+
+  <div class="card">
+    <h2>How to read an answer</h2>
+    <ol>
+      <li>Answer cites Law numbers when it's confident — click through the README's eval report to see how often that citation is actually correct (spoiler: it's an honest, imperfect number, not a marketing one).</li>
+      <li>"I don't know" is a deliberate, correct response for out-of-scope questions (ice hockey, refereeing salaries, etc.) — the pipeline is built to refuse rather than hallucinate.</li>
+      <li>This demo runs on Google Gemini's free tier, shared across every visitor — see the tracker above and the README's "why Gemini, not Claude" section for why that means occasional pauses.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <textarea id="question" placeholder="e.g. Is it a handball if the ball hits a natural arm position?"></textarea>
+    <div class="examples" id="examples"></div>
+    <button class="ask" id="ask-btn">Ask</button>
+    <div id="answer-area"></div>
+  </div>
+
+  <footer>
+    Source: IFAB Laws of the Game 2026/27 &middot;
+    <a href="https://github.com/daniprado224/soccer_chatbot_rag" target="_blank" rel="noopener">Source &amp; README</a>
+  </footer>
+</div>
+
+<script>
+const EXAMPLES = [
+  "How many players are on each team?",
+  "Is it a handball if the ball hits a natural arm position?",
+  "From what distance is a penalty kick taken?",
+  "What was the final score of the 2022 World Cup final?",
+];
+
+const examplesEl = document.getElementById("examples");
+EXAMPLES.forEach((q) => {
+  const btn = document.createElement("button");
+  btn.className = "example-chip";
+  btn.textContent = q;
+  btn.onclick = () => { document.getElementById("question").value = q; };
+  examplesEl.appendChild(btn);
+});
+
+function fmtResetTime(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch (e) {
+    return "shortly";
+  }
+}
+
+async function refreshTracker() {
+  const pill = document.getElementById("tracker-pill");
+  const label = document.getElementById("tracker-label");
+  const count = document.getElementById("tracker-count");
+  const note = document.getElementById("tracker-note");
+  try {
+    const res = await fetch("/api/status");
+    const data = await res.json();
+    if (data.available) {
+      pill.className = "pill ok";
+      label.textContent = "Available";
+    } else {
+      pill.className = "pill bad";
+      const scopeLabel = data.scope === "day" ? "daily" : data.scope === "minute" ? "per-minute" : "";
+      label.textContent = `Rate-limited (${scopeLabel} limit) — resets ~${fmtResetTime(data.reset_at)}`;
+    }
+    count.textContent = data.questions_today != null
+      ? `${data.questions_today} question${data.questions_today === 1 ? "" : "s"} answered today`
+      : "";
+    note.textContent = data.tracker_configured
+      ? ""
+      : "(usage tracker not configured for this deployment)";
+  } catch (e) {
+    pill.className = "pill bad";
+    label.textContent = "Status unknown";
+  }
+}
+refreshTracker();
+setInterval(refreshTracker, 20000);
+
+const askBtn = document.getElementById("ask-btn");
+const questionEl = document.getElementById("question");
+const answerArea = document.getElementById("answer-area");
+
+async function ask() {
+  const question = questionEl.value.trim();
+  if (!question) return;
+  askBtn.disabled = true;
+  askBtn.textContent = "Thinking…";
+  answerArea.innerHTML = "";
+
+  try {
+    const res = await fetch("/api/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      answerArea.innerHTML = `<div class="error-box">${data.message || "Something went wrong. Try again."}</div>`;
+    } else {
+      const cls = data.answerable ? "answer" : "answer unanswerable";
+      const chips = (data.cited_laws || [])
+        .map((n) => `<span class="law-chip">Law ${n}</span>`)
+        .join("");
+      answerArea.innerHTML = `
+        <div class="${cls}">
+          <div class="answer-text"></div>
+          <div class="law-chips">${chips}</div>
+        </div>`;
+      answerArea.querySelector(".answer-text").textContent = data.answer;
+    }
+  } catch (e) {
+    answerArea.innerHTML = `<div class="error-box">Network error — try again.</div>`;
+  } finally {
+    askBtn.disabled = false;
+    askBtn.textContent = "Ask";
+    refreshTracker();
+  }
+}
+
+askBtn.addEventListener("click", ask);
+questionEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask();
+});
+</script>
+</body>
+</html>

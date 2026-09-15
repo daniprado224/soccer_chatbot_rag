@@ -81,15 +81,22 @@ flowchart TB
 ```
 data/
   raw/            # source PDFs you provide (gitignored -- copyrighted third-party docs)
-  processed/      # optional dumped chunks (--dump-chunks)
+  processed/      # chunks.json + embeddings.npy (committed -- see scripts/)
   eval/qa_pairs.json  # ground-truth eval set
 src/
   ingestion.py    # PDF -> section-aware chunks -> Chroma
   embeddings.py   # pluggable embedding backends (spacy | openai)
+  llm.py          # pluggable LLM backends (claude | gemini) + Gemini quota handling
   graph.py        # LangGraph retrieve/grade/rewrite/answer state machine
+  memory_vectorstore.py  # in-memory vector store used by the deployed web app
+  quota_store.py  # shared quota tracker (Upstash Redis) for the web app
   cli.py          # interactive / one-shot CLI
-  api.py          # minimal FastAPI endpoint
+  api.py          # minimal FastAPI endpoint (local/dev use)
   eval.py         # retrieval + generation metrics, markdown report
+api/query.py      # Vercel serverless function backing the web demo
+public/index.html # web demo frontend (static, no build step)
+scripts/build_embeddings_artifact.py  # precompute data/processed/embeddings.npy
+vercel.json       # Vercel build/routing config
 tests/            # unit tests -- run without any API key or source PDF
 ```
 
@@ -221,6 +228,90 @@ function. This is the one piece of this repo that deviates from the
 original spec's "Claude API" requirement, and only because of a real
 constraint (no Console credit balance) rather than preference — see the
 [status notes](#status--honesty-notes-read-this-first) at the top.
+
+### Why Gemini instead of Claude, specifically
+
+Worth stating plainly rather than burying in a code comment, since it's a
+real engineering tradeoff, not a preference:
+
+- **Anthropic's API has no free tier.** Console access is prepaid credits
+  only; this project's key had a $0 balance and every call returned
+  `"Your credit balance is too low to access the Anthropic API."` No
+  amount of code fixes that — it needs an actual payment method on the
+  account.
+- **Google AI Studio issues free Gemini API keys with no payment method
+  required.** That made it possible to get a real, running eval at all
+  without spending money.
+- **The free tier is real but narrow**, and its exact limits aren't
+  documented per-model anywhere I could find in advance — they were
+  discovered empirically, from actual 429 responses, during this
+  project: `gemini-3.6-flash` capped at **20 requests/day**;
+  `gemini-3.1-flash-lite` (the current default) caps at **15
+  requests/minute**. That second number is why `src/llm.py` throttles
+  calls to ~10/minute and the eval harness needed a `--limit` flag to
+  test cheaply before spending quota on a full run — see the git history
+  on `src/llm.py` and `src/eval.py` for exactly how many attempts that
+  took.
+- **This is a real quality tradeoff, not just an inconvenience.** The eval
+  numbers above measure Gemini's grading/generation quality on this
+  corpus, not Claude's. Swapping `LLM_BACKEND=claude` back in (once/if
+  Console credits exist) would need its own eval run to know how the
+  numbers actually compare — don't assume they'd be the same.
+
+## Deploying (Vercel)
+
+A minimal web demo lives in `public/index.html` (static frontend) +
+`api/query.py` (a Python serverless function). Two real constraints
+shaped how this is built, not just "add a frontend":
+
+1. **Chroma doesn't work on Vercel's serverless functions.** Their
+   filesystem is ephemeral and not shared across invocations or
+   concurrent instances, but Chroma persists to local disk. With only
+   144 chunks in the real corpus (~172KB of vectors), there's no need for
+   an actual vector database in production anyway: `scripts/
+   build_embeddings_artifact.py` precomputes and commits a small `.npy`
+   matrix, and `src/memory_vectorstore.py` does brute-force cosine
+   similarity over it in memory on every request. `RetrievalGraph` in
+   `graph.py` needed zero changes — it only depends on
+   `similarity_search_with_score(query, k)`, which this implements
+   identically to Chroma's interface.
+2. **Every visitor to the deployed app shares one Gemini API key**, so its
+   free-tier quota is a resource shared across all of them — a
+   per-browser countdown would be actively misleading, since one
+   visitor's browser has no way to know what other visitors already
+   used. The tracker in the page header is backed by **Upstash Redis**
+   (a native, free-tier Vercel integration) via `src/quota_store.py`, and
+   it's deliberately **reactive, not predictive**: since Google doesn't
+   expose a quota-remaining endpoint to free-tier callers, and the two
+   limits above were only ever empirically observed for specific models
+   (not a documented guarantee for whatever's configured), the tracker
+   doesn't count down to a guessed number. It shows "available" plus how
+   many questions were served today, and only switches to "rate-limited,
+   resets ~HH:MM" once a real 429 has actually happened, using the API's
+   own suggested retry delay. If Upstash isn't configured, `/api/status`
+   still works and just always reports "available" (`tracker_configured:
+   false`) rather than breaking the page.
+
+### Setup steps (must be done by you — I have no Vercel account to do this from)
+
+1. Push this repo to GitHub (already done if you're reading this from the repo).
+2. On [vercel.com](https://vercel.com): **Add New Project → Import Git Repository** → select this repo. Vercel reads `vercel.json` and builds both the static frontend and the Python function automatically.
+3. In the project's **Storage** tab, add the **Upstash** integration (free tier) — this auto-injects `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Skipping this is fine; the tracker just won't be accurate across visitors.
+4. In **Settings → Environment Variables**, set at minimum:
+   - `LLM_BACKEND=gemini`
+   - `GEMINI_API_KEY=...` (free at https://aistudio.google.com/apikey)
+   - `EMBEDDING_BACKEND=spacy` (the default; no key needed)
+5. Deploy.
+
+**Honest caveat**: this was built and tested locally (the Flask app,
+in-memory vector store, and quota tracker logic all have real requests
+run against them in this repo's test suite and manual runs — see the
+commits), but I have no Vercel account and could not run an actual live
+deployment from here. `vercel.json`'s `includeFiles` config and the
+`@vercel/python` WSGI convention are correct per Vercel's current docs as
+of this writing, but a first deploy is the real test — if it fails on a
+missing-file or import error, it's almost certainly the `includeFiles`
+glob needing a tweak, not a problem with the underlying Python code.
 
 ## Evaluation
 

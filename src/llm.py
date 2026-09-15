@@ -36,6 +36,35 @@ else:
     GRADER_MODEL = os.getenv("CLAUDE_GRADER_MODEL", "claude-haiku-4-5-20251001")
 
 
+class GeminiQuotaExceeded(Exception):
+    """A Gemini free-tier quota was actually exhausted (not a transient blip).
+
+    Carries the API's own suggested retry delay and which quota dimension
+    tripped (per-minute vs per-day, from the 429's quotaId) so callers --
+    notably the deployed web app's shared quota tracker -- can show an
+    accurate "try again around HH:MM" instead of guessing at limits that
+    were only ever empirically observed, not officially documented for
+    this exact model.
+    """
+
+    def __init__(self, retry_after_seconds: float, scope: str):
+        self.retry_after_seconds = retry_after_seconds
+        self.scope = scope  # "minute" | "day" | "unknown"
+        super().__init__(f"Gemini quota exceeded ({scope}), retry after {retry_after_seconds:.0f}s")
+
+
+def _parse_quota_exhaustion(message: str) -> tuple[float, str]:
+    delay_match = re.search(r"retryDelay['\"]?\s*:\s*['\"]?(\d+(?:\.\d+)?)s", message)
+    retry_after = float(delay_match.group(1)) if delay_match else 60.0
+    if "PerDay" in message:
+        scope = "day"
+    elif "PerMinute" in message:
+        scope = "minute"
+    else:
+        scope = "unknown"
+    return retry_after, scope
+
+
 def extract_json(text: str) -> dict:
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
@@ -103,9 +132,12 @@ def _call_gemini(system: str, user: str, model: str, max_tokens: int) -> str:
             resp = client.models.generate_content(model=model, contents=user, config=config)
             return resp.text or ""
         except ClientError as e:
-            if "RESOURCE_EXHAUSTED" in str(e) and attempt == 0:
-                time.sleep(15)  # one retry past a transient per-minute cap; a daily cap will still raise
-                continue
+            if "RESOURCE_EXHAUSTED" in str(e):
+                if attempt == 0:
+                    time.sleep(15)  # one retry past a transient per-minute cap; a daily cap will still raise
+                    continue
+                retry_after, scope = _parse_quota_exhaustion(str(e))
+                raise GeminiQuotaExceeded(retry_after, scope) from e
             raise
 
 

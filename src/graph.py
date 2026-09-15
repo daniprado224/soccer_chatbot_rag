@@ -21,7 +21,7 @@ from typing import TypedDict
 from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
 
-from .llm import DEFAULT_MODEL, GRADER_MODEL, call_llm, extract_json
+from .llm import DEFAULT_MODEL, GRADER_MODEL, GeminiQuotaExceeded, call_llm, extract_json
 
 load_dotenv()
 
@@ -74,6 +74,12 @@ class GraphState(TypedDict):
     # 100% API-error rate.
     grading_error: bool
     generation_error: bool
+    # Populated specifically when the error above was a confirmed Gemini
+    # quota exhaustion (not just any exception) -- {"retry_after_seconds":
+    # float, "scope": "minute"|"day"|"unknown"}, or None. The deployed web
+    # app's quota tracker reads this to show an accurate reset estimate
+    # instead of guessing.
+    quota_info: dict | None
 
 
 class RetrievalGraph:
@@ -113,7 +119,7 @@ class RetrievalGraph:
     def _grade(self, state: GraphState) -> dict:
         chunks = state["retrieved"]
         if not chunks:
-            return {"relevant_chunks": [], "grading_error": False}
+            return {"relevant_chunks": [], "grading_error": False, "quota_info": None}
 
         # One batched call grading all k chunks at once, rather than k
         # separate calls -- cuts LLM call volume ~k-fold, which matters a
@@ -133,9 +139,15 @@ class RetrievalGraph:
         user = f"Question: {state['original_question']}\n\nPassages:\n{passages}"
 
         grading_error = False
+        quota_info = None
         try:
             raw = call_llm(system, user, self.grader_model, max_tokens=20 + 5 * len(chunks))
             labels = extract_json(raw).get("relevant", [])
+        except GeminiQuotaExceeded as e:
+            print(f"[graph] grading call hit a real quota limit ({e})", file=sys.stderr)
+            labels = []
+            grading_error = True
+            quota_info = {"retry_after_seconds": e.retry_after_seconds, "scope": e.scope}
         except Exception as e:
             # Fail closed: on error, every chunk is treated as not relevant
             # rather than silently passed through to generation -- but
@@ -151,7 +163,7 @@ class RetrievalGraph:
             chunk["relevant"] = label
             if label:
                 graded.append(chunk)
-        return {"relevant_chunks": graded, "grading_error": grading_error}
+        return {"relevant_chunks": graded, "grading_error": grading_error, "quota_info": quota_info}
 
     def _should_rewrite(self, state: GraphState) -> str:
         if len(state["relevant_chunks"]) >= MIN_RELEVANT:
@@ -186,6 +198,7 @@ class RetrievalGraph:
                 "cited_laws": [],
                 "answerable": False,
                 "generation_error": False,
+                "quota_info": state.get("quota_info"),  # preserve a quota hit from grading
             }
 
         context = "\n\n---\n\n".join(
@@ -209,6 +222,15 @@ class RetrievalGraph:
                 "cited_laws": [_normalize_law_number(x) for x in parsed.get("cited_laws", [])],
                 "answerable": bool(parsed.get("answerable", True)),
                 "generation_error": False,
+            }
+        except GeminiQuotaExceeded as e:
+            print(f"[graph] generation call hit a real quota limit ({e})", file=sys.stderr)
+            return {
+                "answer": "I'm temporarily unavailable -- try again shortly.",
+                "cited_laws": [],
+                "answerable": False,
+                "generation_error": True,
+                "quota_info": {"retry_after_seconds": e.retry_after_seconds, "scope": e.scope},
             }
         except Exception as e:
             print(f"[graph] generation call failed: {e}", file=sys.stderr)
@@ -247,6 +269,7 @@ class RetrievalGraph:
             "answerable": True,
             "grading_error": False,
             "generation_error": False,
+            "quota_info": None,
         }
         return self.app.invoke(initial)
 
