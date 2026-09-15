@@ -141,3 +141,30 @@ def test_grading_api_failure_is_flagged_distinctly_from_a_real_refusal(monkeypat
 
     assert result["answerable"] is False
     assert result["grading_error"] is True
+
+
+def test_retrieved_state_carries_the_real_grading_verdict_for_every_chunk(monkeypatch):
+    # Regression test: _grade used to mutate the "relevant" flag only on
+    # the filtered relevant_chunks list, leaving state["retrieved"] (the
+    # full ranked list the web app's /api/query exposes for transparency)
+    # permanently stuck at relevant=None for every chunk, graded or not.
+    store = FakeVectorStore(
+        {
+            "q": [
+                (_doc("3", "Number of Players", "eleven players"), 0.9),
+                (_doc("9", "Ball in play", "unrelated text"), 0.8),
+            ]
+        }
+    )
+
+    def fake_call(system, user, model, max_tokens=1024):
+        if "relevance grader" in system:
+            return json.dumps({"relevant": [True, False]})
+        return json.dumps({"answer": "Eleven (Law 3).", "cited_laws": ["3"], "answerable": True})
+
+    monkeypatch.setattr(graph_mod, "call_llm", fake_call)
+
+    rg = RetrievalGraph(store)
+    result = rg.query("q")
+
+    assert [c["relevant"] for c in result["retrieved"]] == [True, False]

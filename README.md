@@ -90,6 +90,7 @@ src/
   graph.py        # LangGraph retrieve/grade/rewrite/answer state machine
   memory_vectorstore.py  # in-memory vector store used by the deployed web app
   quota_store.py  # shared quota tracker (Upstash Redis) for the web app
+  query_diagnostics.py  # retrieval ranking + phrasing-suggestion math for the web app
   cli.py          # interactive / one-shot CLI
   api.py          # minimal FastAPI endpoint (local/dev use)
   eval.py         # retrieval + generation metrics, markdown report
@@ -413,6 +414,74 @@ over-refusal count, since the grader is now intentionally biased toward
 Full per-question detail (which specific law each question needed, what
 was cited, and the exact failure bucket) is in the committed
 [`eval_report.md`](eval_report.md) at the repo root.
+
+## How retrieval scoring works
+
+The web demo shows the actual retrieval ranking (`src/query_diagnostics.py`)
+under every answer, and a phrasing suggestion when the pipeline fails to
+answer. Here's exactly what's being computed — real, deterministic math,
+not an approximation of it.
+
+**The score itself.** Every chunk was embedded once, at ingestion time
+(`scripts/build_embeddings_artifact.py`), by running its text through
+spaCy's `en_core_web_md` model and taking the **average of every token's
+300-dimension GloVe-style word vector**, then L2-normalizing the result to
+unit length. A query is embedded the same way at request time. Because
+both vectors are unit-length, their **dot product equals their cosine
+similarity** — that's the entire scoring formula:
+
+```
+score(chunk, query) = normalize(mean(token_vectors(chunk))) · normalize(mean(token_vectors(query)))
+```
+
+`src/memory_vectorstore.py` (the deployed app) and Chroma (local dev) both
+compute this same way; only the storage/indexing differs.
+
+**Why scores cluster tightly in a high range (~0.80–0.98) regardless of
+match quality.** Averaging has no way to weight a distinctive word (like
+"offside") more than the common legal-prose words surrounding it ("the,"
+"a," "player," "match," "law"). Since every chunk in this corpus is
+similarly-styled rulebook text, most chunk-pairs already share a lot of
+that common vocabulary, pushing baseline similarity up across the board —
+there's no TF-IDF or attention mechanism here to suppress it. This is the
+single biggest reason a real sentence-transformer or OpenAI embedding
+would retrieve better: they're trained to represent *meaning*, not just
+*average word identity*.
+
+**A concrete, measured example** (from real debugging on the deployed
+app — not a constructed one): the query **"What is an offside?"** scores
+0.808 against the chunk that actually defines offside (Law 11, "1.
+Offside position"), which lands at **rank #92 of 144** — worse than
+two-thirds of the entire corpus, behind four completely unrelated chunks
+(ball-in-play, restart procedure, player count, penalty offences) that
+score 0.88–0.90. Rephrased to echo the rulebook's own wording —
+**"A player is in an offside position if any part of the head, body or
+feet is in the opponents' half"** — the same chunk scores **0.982 and
+ranks #1**. Nothing about the underlying meaning changed; only the word
+overlap did.
+
+**The "suggested phrasing" feature**, used only when the pipeline
+actually fails to answer (to bound its LLM cost to genuine failures, not
+every question):
+1. Ask the LLM for 3 alternate phrasings of the failing question.
+2. Score each one against the corpus using the *exact same* formula
+   above — no LLM judgment involved in the scoring itself.
+3. Surface the best one only if it beats the original by more than 3%
+   relative (`MIN_RELATIVE_IMPROVEMENT` in `query_diagnostics.py`) — an
+   arbitrary-but-stated noise margin, not a statistically derived cutoff,
+   chosen because these scores are tightly clustered enough that a 0.5%
+   difference isn't meaningful.
+
+**The important caveat, proven rather than asserted**: a higher score
+does not mean a more correct answer — it means closer *word overlap* with
+the corpus, which is exactly the limitation being described. Real
+example: asking for a rephrasing of "What is an offside?" once returned a
+suggested phrasing scoring 0.9755 (up from 0.9023) — but its top-ranked
+chunk turned out to be `Law 3 / "Other substitutes) matches"`, a PDF
+parsing artifact (see [Ingestion](#ingestion)), not real offside content.
+The feature is transparent about this: it always shows the actual
+retrieved ranking for the suggestion too, rather than just the score
+number, so this kind of false lead is visible rather than hidden.
 
 ## Known limitations
 

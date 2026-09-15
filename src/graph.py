@@ -166,14 +166,21 @@ class RetrievalGraph:
             labels = []
             grading_error = True
 
-        graded: list[RetrievedChunk] = []
+        all_graded: list[RetrievedChunk] = []
+        relevant_only: list[RetrievedChunk] = []
         for i, chunk in enumerate(chunks):
             label = bool(labels[i]) if i < len(labels) else False
             chunk = dict(chunk)
             chunk["relevant"] = label
+            all_graded.append(chunk)
             if label:
-                graded.append(chunk)
-        return {"relevant_chunks": graded, "grading_error": grading_error, "quota_info": quota_info}
+                relevant_only.append(chunk)
+        return {
+            "retrieved": all_graded,  # same chunks, now carrying their real grading verdict
+            "relevant_chunks": relevant_only,
+            "grading_error": grading_error,
+            "quota_info": quota_info,
+        }
 
     def _should_rewrite(self, state: GraphState) -> str:
         if len(state["relevant_chunks"]) >= MIN_RELEVANT:

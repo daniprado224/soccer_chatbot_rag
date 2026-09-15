@@ -29,7 +29,9 @@ from flask import Flask, jsonify, request  # noqa: E402
 from src import quota_store  # noqa: E402
 from src.embeddings import get_embeddings  # noqa: E402
 from src.graph import RetrievalGraph  # noqa: E402
+from src.llm import DEFAULT_MODEL  # noqa: E402
 from src.memory_vectorstore import InMemoryVectorStore  # noqa: E402
+from src.query_diagnostics import suggest_better_phrasing  # noqa: E402
 
 app = Flask(__name__)
 
@@ -80,11 +82,34 @@ def query():
         ), 503
 
     quota_store.record_question()
-    return jsonify(
+
+    # The real ranking the pipeline itself just used to decide this answer
+    # -- free to expose, it's already-computed data, not an extra call.
+    retrieval = [
         {
-            "answer": result["answer"],
-            "cited_laws": result["cited_laws"],
-            "answerable": result["answerable"],
-            "retry_count": result["retry_count"],
+            "law_number": c["law_number"],
+            "section_title": c["section_title"],
+            "score": round(c["score"], 4),
+            "relevant": c["relevant"],
         }
-    )
+        for c in result["retrieved"]
+    ]
+
+    response = {
+        "answer": result["answer"],
+        "cited_laws": result["cited_laws"],
+        "answerable": result["answerable"],
+        "retry_count": result["retry_count"],
+        "retrieval": retrieval,
+    }
+
+    # Only spend the extra LLM call generating/re-scoring alternate
+    # phrasings when the pipeline actually failed to answer -- see
+    # src/query_diagnostics.py for why, and why this can never itself
+    # break the real answer if it fails.
+    if not result["answerable"]:
+        suggestion = suggest_better_phrasing(_store, question, DEFAULT_MODEL)
+        if suggestion:
+            response["suggestion"] = suggestion
+
+    return jsonify(response)

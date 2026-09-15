@@ -105,6 +105,36 @@
     border-radius: 10px; padding: 12px 14px; font-size: 0.9rem;
   }
 
+  .retrieval-details {
+    margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px;
+  }
+  .retrieval-details summary {
+    cursor: pointer; font-size: 0.82rem; color: var(--muted); font-weight: 600;
+    user-select: none;
+  }
+  .retrieval-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
+  .retrieval-table th, .retrieval-table td {
+    text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border);
+  }
+  .retrieval-table th { color: var(--muted); font-weight: 600; }
+  .retrieval-table td.score { font-variant-numeric: tabular-nums; }
+  .retrieval-table tr.relevant td { color: var(--ink); }
+  .retrieval-table tr.not-relevant td { color: var(--muted); }
+  .rel-badge { font-size: 0.75rem; }
+
+  .suggestion-box {
+    margin-top: 14px; border: 1px dashed var(--accent); border-radius: 10px;
+    padding: 12px 14px; font-size: 0.85rem; background: var(--chip-bg);
+  }
+  .suggestion-box .label { font-weight: 700; color: var(--accent); display: block; margin-bottom: 4px; }
+  .suggestion-box .phrasing { font-style: italic; margin: 4px 0; }
+  .suggestion-box .scores { color: var(--muted); font-size: 0.78rem; }
+  .suggestion-box .caveat { color: var(--muted); font-size: 0.76rem; margin-top: 6px; display: block; }
+  .suggestion-box button {
+    margin-top: 8px; background: transparent; border: 1px solid var(--accent); color: var(--accent);
+    border-radius: 8px; padding: 5px 12px; font-size: 0.8rem; cursor: pointer;
+  }
+
   footer { margin-top: 24px; color: var(--muted); font-size: 0.8rem; text-align: center; }
   footer a { color: inherit; }
 </style>
@@ -136,6 +166,7 @@
       <li>Answer cites Law numbers when it's confident — click through the README's eval report to see how often that citation is actually correct (spoiler: it's an honest, imperfect number, not a marketing one).</li>
       <li>"I don't know" is a deliberate, correct response for out-of-scope questions (ice hockey, refereeing salaries, etc.) — the pipeline is built to refuse rather than hallucinate.</li>
       <li>This demo runs on Google Gemini's free tier, shared across every visitor — see the tracker above and the README's "why Gemini, not Claude" section for why that means occasional pauses.</li>
+      <li>Every answer includes a "Retrieval ranking" you can expand — the actual cosine-similarity scores the retriever computed, not a simplified summary. When the pipeline can't answer, it also tries alternate phrasings and shows one that scores measurably higher, if one exists — see the README's "How retrieval scoring works" for the exact math and an honest caveat about what a higher score does and doesn't mean.</li>
     </ol>
   </div>
 
@@ -156,7 +187,7 @@
 const EXAMPLES = [
   "How many players are on each team?",
   "Is it a handball if the ball hits a natural arm position?",
-  "From what distance is a penalty kick taken?",
+  "What is an offside?",
   "What was the final score of the 2022 World Cup final?",
 ];
 
@@ -212,6 +243,52 @@ const askBtn = document.getElementById("ask-btn");
 const questionEl = document.getElementById("question");
 const answerArea = document.getElementById("answer-area");
 
+function escapeHtml(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function renderRetrievalDetails(retrieval) {
+  if (!retrieval || !retrieval.length) return "";
+  const rows = retrieval
+    .map((r) => {
+      const relCls = r.relevant === true ? "relevant" : r.relevant === false ? "not-relevant" : "";
+      const relBadge = r.relevant === true ? "✅" : r.relevant === false ? "—" : "?";
+      return `<tr class="${relCls}">
+        <td>Law ${escapeHtml(String(r.law_number))}</td>
+        <td>${escapeHtml(r.section_title || "")}</td>
+        <td class="score">${r.score.toFixed(4)}</td>
+        <td class="rel-badge">${relBadge}</td>
+      </tr>`;
+    })
+    .join("");
+  return `
+    <details class="retrieval-details">
+      <summary>Retrieval ranking (${retrieval.length} chunks, real cosine-similarity scores — see README)</summary>
+      <table class="retrieval-table">
+        <thead><tr><th>Law</th><th>Section</th><th>Score</th><th>Graded relevant?</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </details>`;
+}
+
+function renderSuggestion(suggestion) {
+  if (!suggestion) return "";
+  const delta = (
+    ((suggestion.suggested_top_score - suggestion.original_top_score) / suggestion.original_top_score) *
+    100
+  ).toFixed(1);
+  return `
+    <div class="suggestion-box">
+      <span class="label">💡 A differently-phrased version of this question retrieves more confidently</span>
+      <div class="phrasing">"${escapeHtml(suggestion.suggested_phrasing)}"</div>
+      <div class="scores">Top retrieval score: ${suggestion.original_top_score.toFixed(4)} → ${suggestion.suggested_top_score.toFixed(4)} (+${delta}%)</div>
+      <button class="try-suggestion">Try this phrasing</button>
+      <span class="caveat">A higher score means this phrasing matches the corpus's own wording more closely — it does NOT guarantee a more correct answer (see README's "How retrieval scoring works" for why, including a case where this is measurably true).</span>
+    </div>`;
+}
+
 async function ask() {
   const question = questionEl.value.trim();
   if (!question) return;
@@ -238,8 +315,17 @@ async function ask() {
         <div class="${cls}">
           <div class="answer-text"></div>
           <div class="law-chips">${chips}</div>
+          ${renderSuggestion(data.suggestion)}
+          ${renderRetrievalDetails(data.retrieval)}
         </div>`;
       answerArea.querySelector(".answer-text").textContent = data.answer;
+      const tryBtn = answerArea.querySelector(".try-suggestion");
+      if (tryBtn) {
+        tryBtn.addEventListener("click", () => {
+          questionEl.value = data.suggestion.suggested_phrasing;
+          ask();
+        });
+      }
     }
   } catch (e) {
     answerArea.innerHTML = `<div class="error-box">Network error — try again.</div>`;
