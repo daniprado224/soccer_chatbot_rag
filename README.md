@@ -391,6 +391,25 @@ Reading this honestly:
   control specified**, not an average over multiple seeds — treat these
   as one honest data point, not a tight confidence interval.
 
+**Post-eval update**: after this run, manual testing on the deployed web
+app surfaced a worse failure mode than plain over-refusal — the grader
+approving a chunk that only tangentially mentioned the question's topic
+(e.g. a Law 8 kick-off passage that mentions "a corner kick is awarded"
+in passing got approved for a question asking how corner kicks work),
+which generation then built a confident, wrong-but-plausible-sounding
+answer around. Both the grading and generation prompts in `graph.py` were
+tightened to require a passage be specifically about the asked situation,
+not just topically adjacent, and to independently double-check that at
+generation time even after grading approves something. Verified against
+that exact failing case (now correctly refuses) and against previously-passing
+cases (handball nuance, player count — still correct, no regression), but
+**the eval numbers above predate this fix and have not been re-measured**
+— re-running the full eval was deferred to conserve the free-tier daily
+quota rather than assumed to be unnecessary. The likely direction of the
+effect: fewer confidently-wrong answers, possibly a slightly higher
+over-refusal count, since the grader is now intentionally biased toward
+"reject when unsure."
+
 Full per-question detail (which specific law each question needed, what
 was cited, and the exact failure bucket) is in the committed
 [`eval_report.md`](eval_report.md) at the repo root.

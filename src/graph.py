@@ -131,8 +131,18 @@ class RetrievalGraph:
         system = (
             "You are a strict relevance grader for a rules-lookup RAG system. "
             "Given a question and several numbered passages, decide for EACH "
-            "passage whether it could help answer the question -- even "
-            'partially. Respond with ONLY a JSON object: {"relevant": '
+            "passage whether it is ACTUALLY ABOUT the specific rule or "
+            "situation the question asks about -- not just because it shares "
+            "a keyword or mentions the topic in passing while describing a "
+            "different situation. For example, a passage about kick-offs "
+            "that mentions 'a corner kick is awarded' as a side consequence "
+            "is NOT relevant to a question asking how corner kicks work; a "
+            "passage giving the general definition of a rule IS relevant to "
+            "a 'what is X' question even if it doesn't cover every edge "
+            "case. When genuinely unsure, prefer false: a missed passage can "
+            "still be found by rewriting the question, but approving an "
+            "off-topic passage lets the next step build a confident, wrong "
+            'answer around it. Respond with ONLY a JSON object: {"relevant": '
             "[true, false, ...]} with exactly one boolean per passage, in "
             "the same order as given."
         )
@@ -207,10 +217,16 @@ class RetrievalGraph:
         )
         system = (
             "You are a football (soccer) rules assistant. Answer ONLY using the "
-            "provided context passages -- never from outside knowledge. Cite every "
-            "law/article number you rely on inline, like '(Law 12)'. If the context "
-            "does not actually answer the question, say you don't know instead of "
-            "guessing. Respond with ONLY a JSON object: "
+            "provided context passages -- never from outside knowledge. A passage "
+            "was pre-filtered by a separate relevance check, but that check can be "
+            "wrong -- independently confirm each passage you rely on is actually "
+            "about the specific situation asked, not just topically related (e.g. "
+            "a passage about kick-offs that mentions a corner kick as a side "
+            "consequence does not answer a question about how corner kicks work). "
+            "Cite every law/article number you rely on inline, like '(Law 12)'. If "
+            "no passage actually answers the question, set answerable to false and "
+            "say you don't know instead of guessing or stretching a tangential "
+            "passage to fit. Respond with ONLY a JSON object: "
             '{"answer": "...", "cited_laws": ["12", "5"], "answerable": true|false}'
         )
         user = f"Context:\n{context}\n\nQuestion: {state['original_question']}"
