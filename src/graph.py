@@ -59,7 +59,11 @@ class GraphState(TypedDict):
 def _get_claude_client():
     import anthropic
 
-    return anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
+    # Org-scoped (not workspace-scoped) API keys require an explicit
+    # anthropic-workspace-id header on every request.
+    workspace_id = os.getenv("ANTHROPIC_WORKSPACE_ID")
+    headers = {"anthropic-workspace-id": workspace_id} if workspace_id else None
+    return anthropic.Anthropic(default_headers=headers)  # reads ANTHROPIC_API_KEY from env
 
 
 def _extract_json(text: str) -> dict:
