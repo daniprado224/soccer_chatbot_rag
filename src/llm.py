@@ -22,18 +22,25 @@ import re
 import threading
 import time
 
-LLM_BACKEND = os.getenv("LLM_BACKEND", "claude").lower()
+# .strip() matters here, not just cosmetically: a trailing newline/space in
+# an env var (easy to introduce via `vercel env add`'s interactive prompt,
+# or copy-pasting) makes "gemini\n" != "gemini", silently falling through
+# to the Claude default with no error -- which is exactly what happened
+# testing the real Vercel deployment: LLM_BACKEND was set and visible in
+# `vercel env ls`, but every request still hit Claude's "no credentials"
+# error because the equality check below was failing silently.
+LLM_BACKEND = os.getenv("LLM_BACKEND", "claude").strip().lower()
 
 # Model name defaults are backend-specific -- e.g. a Claude model name
 # while LLM_BACKEND=gemini would just 404, and vice versa.
 if LLM_BACKEND == "gemini":
-    DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+    DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite").strip()
     # Flash is already cheap/fast enough to use for grading too, unlike
     # the Claude default where grading gets its own smaller model.
-    GRADER_MODEL = os.getenv("GEMINI_GRADER_MODEL", DEFAULT_MODEL)
+    GRADER_MODEL = os.getenv("GEMINI_GRADER_MODEL", DEFAULT_MODEL).strip()
 else:
-    DEFAULT_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5")
-    GRADER_MODEL = os.getenv("CLAUDE_GRADER_MODEL", "claude-haiku-4-5-20251001")
+    DEFAULT_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5").strip()
+    GRADER_MODEL = os.getenv("CLAUDE_GRADER_MODEL", "claude-haiku-4-5-20251001").strip()
 
 
 class GeminiQuotaExceeded(Exception):
@@ -75,11 +82,14 @@ def extract_json(text: str) -> dict:
 def _call_claude(system: str, user: str, model: str, max_tokens: int) -> str:
     import anthropic
 
-    # Org-scoped (not workspace-scoped) API keys require an explicit
-    # anthropic-workspace-id header on every request.
-    workspace_id = os.getenv("ANTHROPIC_WORKSPACE_ID")
+    # Explicit .strip()'d reads throughout this module, not just for
+    # LLM_BACKEND above -- an API key with trailing whitespace from the
+    # same class of env-var-entry mistake would otherwise fail auth with a
+    # confusing error instead of just working.
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip() or None
+    workspace_id = os.getenv("ANTHROPIC_WORKSPACE_ID", "").strip() or None
     headers = {"anthropic-workspace-id": workspace_id} if workspace_id else None
-    client = anthropic.Anthropic(default_headers=headers)  # reads ANTHROPIC_API_KEY from env
+    client = anthropic.Anthropic(api_key=api_key, default_headers=headers)
     resp = client.messages.create(
         model=model,
         max_tokens=max_tokens,
@@ -115,7 +125,7 @@ def _call_gemini(system: str, user: str, model: str, max_tokens: int) -> str:
     from google.genai import types
     from google.genai.errors import ClientError
 
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))  # free tier via aistudio.google.com
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY", "").strip())  # free tier via aistudio.google.com
     config = types.GenerateContentConfig(
         system_instruction=system,
         max_output_tokens=max_tokens,
