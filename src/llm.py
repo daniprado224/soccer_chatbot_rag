@@ -25,7 +25,7 @@ LLM_BACKEND = os.getenv("LLM_BACKEND", "claude").lower()
 # Model name defaults are backend-specific -- e.g. a Claude model name
 # while LLM_BACKEND=gemini would just 404, and vice versa.
 if LLM_BACKEND == "gemini":
-    DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+    DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
     # Flash is already cheap/fast enough to use for grading too, unlike
     # the Claude default where grading gets its own smaller model.
     GRADER_MODEL = os.getenv("GEMINI_GRADER_MODEL", DEFAULT_MODEL)

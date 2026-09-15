@@ -229,6 +229,10 @@ def main():
     parser.add_argument("--collection", default=None)
     parser.add_argument("--out", default="eval_report.md")
     parser.add_argument("--json-out", default="eval_results.json")
+    parser.add_argument(
+        "--limit", type=int, default=None,
+        help="Only run the first N questions (useful for a cheap smoke test against a rate-limited backend)",
+    )
     args = parser.parse_args()
 
     from .graph import TOP_K, load_graph
@@ -236,6 +240,8 @@ def main():
     top_k = args.top_k or TOP_K
     graph = load_graph(args.persist, args.collection)
     qa_pairs = load_qa_pairs(Path(args.qa))
+    if args.limit:
+        qa_pairs = qa_pairs[: args.limit]
 
     print(f"[eval] running {len(qa_pairs)} questions at top-{top_k} ...")
     results = run_eval(graph, qa_pairs, top_k)
