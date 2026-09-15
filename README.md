@@ -255,16 +255,54 @@ measures and why:
 
 ### Results
 
-**Not yet run.** This requires the real Laws of the Game PDF (in progress —
-being supplied separately) and a valid `ANTHROPIC_API_KEY`. Run the command
-above and paste the generated `eval_report.md` contents here — do not fill
-in numbers by hand. `git diff` after a real run will show exactly the
-table below being replaced with actual measured precision@k, recall@k,
-citation accuracy, and the failure-mode breakdown.
+Real run, `LLM_BACKEND=gemini` (`gemini-3.1-flash-lite`), against the real
+144-chunk corpus. 0 `llm_error` — every result below is a genuine model
+outcome, not an API failure (see [status notes](#status--honesty-notes-read-this-first)
+and [known limitations](#known-limitations) for what that cost to get to).
 
-<!-- EVAL_REPORT_START -->
-_pending real ingestion + eval run_
-<!-- EVAL_REPORT_END -->
+| Category | n | Precision@k | Recall@k |
+|---|---|---|---|
+| ambiguous | 10 | 0.20 | 0.60 |
+| easy | 10 | 0.18 | 0.50 |
+| **overall** | 20 | 0.19 | 0.55 |
+
+| Category | n | Citation overlap | Citation exact | Answerability correct |
+|---|---|---|---|---|
+| ambiguous | 10 | 0.50 | 0.40 | 0.40 |
+| easy | 10 | 0.20 | 0.20 | 0.20 |
+| unanswerable | 6 | n/a | n/a | 1.00 |
+| **overall** | 26 | 0.35 | 0.30 | 0.46 |
+
+| Failure mode | count |
+|---|---|
+| over_refusal | 14 |
+| none (passing) | 12 |
+
+Reading this honestly:
+
+- **Zero hallucinations.** All 6 out-of-corpus questions were correctly
+  refused. Whatever else is wrong with this pipeline, it isn't making
+  things up — which was the one failure mode the spec explicitly called
+  out as unacceptable.
+- **`over_refusal` (14/20 answerable questions) is the dominant failure
+  mode, and it's not simply "retrieval missed it".** Several of these
+  (e.g. q05, q06, q12, q17, q20 in the full per-question table in
+  `eval_report.md`) have `recall@k = 1.00` — the correct Law chunk WAS in
+  the raw top-5 — but the final answer still refused. That points at the
+  relevance **grader** being too conservative (rejecting a chunk the raw
+  retriever actually found), not just weak retrieval. If I had another
+  pass to spend on this, tuning/relaxing the grader prompt is a higher-leverage
+  fix than swapping the embedding model.
+- **Retrieval precision@k = 0.19** means roughly 1 in 5 of the 5 retrieved
+  chunks is actually relevant on average — consistent with the spaCy
+  word-vector weakness flagged above, not a surprise.
+- This is a **single run against a free-tier model with no temperature
+  control specified**, not an average over multiple seeds — treat these
+  as one honest data point, not a tight confidence interval.
+
+Full per-question detail (which specific law each question needed, what
+was cited, and the exact failure bucket) is in the committed
+[`eval_report.md`](eval_report.md) at the repo root.
 
 ## Known limitations
 

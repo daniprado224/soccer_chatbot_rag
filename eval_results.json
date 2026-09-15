@@ -1,0 +1,707 @@
+[
+  {
+    "id": "q01",
+    "category": "easy",
+    "question": "How many players are on each team on the field at the start of a match?",
+    "expected_law_numbers": [
+      "3"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "3",
+      "12",
+      "3",
+      "6",
+      "10"
+    ],
+    "precision": 0.4,
+    "recall": 1.0,
+    "cited_laws": [
+      "3"
+    ],
+    "answer": "A match is played by two teams, each with a maximum of eleven players, one of whom must be the goalkeeper. A match may not start if either team has fewer than seven players.",
+    "answerable": true,
+    "retry_count": 0,
+    "citation_overlap": true,
+    "citation_exact": true,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q02",
+    "category": "easy",
+    "question": "What is the official length and width range of a football pitch?",
+    "expected_law_numbers": [
+      "1"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "1",
+      "12",
+      "1",
+      "13",
+      "4"
+    ],
+    "precision": 0.4,
+    "recall": 1.0,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q03",
+    "category": "easy",
+    "question": "What is the required circumference of the match ball?",
+    "expected_law_numbers": [
+      "2"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "11",
+      "6",
+      "6",
+      "14",
+      "12"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q04",
+    "category": "easy",
+    "question": "How long is a standard match before extra time, in minutes?",
+    "expected_law_numbers": [
+      "7"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "9",
+      "3",
+      "13",
+      "12",
+      "8"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q05",
+    "category": "easy",
+    "question": "From what distance is a penalty kick taken?",
+    "expected_law_numbers": [
+      "14"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "13",
+      "14",
+      "7",
+      "12",
+      "10"
+    ],
+    "precision": 0.2,
+    "recall": 1.0,
+    "cited_laws": [],
+    "answer": "I don't know.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q06",
+    "category": "easy",
+    "question": "Who has the authority to stop, suspend, or abandon a match?",
+    "expected_law_numbers": [
+      "5"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "5",
+      "10",
+      "12",
+      "14",
+      "12"
+    ],
+    "precision": 0.2,
+    "recall": 1.0,
+    "cited_laws": [],
+    "answer": "I don't know.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q07",
+    "category": "easy",
+    "question": "What items of equipment must every player wear during a match?",
+    "expected_law_numbers": [
+      "4"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "5",
+      "3",
+      "4",
+      "4",
+      "4"
+    ],
+    "precision": 0.6,
+    "recall": 1.0,
+    "cited_laws": [
+      "4"
+    ],
+    "answer": "Every player must wear a shirt with sleeves, shorts, socks (with any external tape matching the sock's color), shinguards (made of suitable material and covered by the socks), and footwear.",
+    "answerable": true,
+    "retry_count": 0,
+    "citation_overlap": true,
+    "citation_exact": true,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q08",
+    "category": "easy",
+    "question": "How must a throw-in be performed for it to be legal?",
+    "expected_law_numbers": [
+      "15"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "12",
+      "5",
+      "4",
+      "12",
+      "3"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q09",
+    "category": "easy",
+    "question": "How is play restarted when the ball goes out over the goal line, last touched by an attacker, and no goal is scored?",
+    "expected_law_numbers": [
+      "16"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "9",
+      "8",
+      "8",
+      "10",
+      "3"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know.",
+    "answerable": false,
+    "retry_count": 0,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q10",
+    "category": "easy",
+    "question": "From where is a corner kick taken?",
+    "expected_law_numbers": [
+      "17"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "13",
+      "9",
+      "8",
+      "2",
+      "7"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q11",
+    "category": "ambiguous",
+    "question": "If the ball accidentally strikes a player's arm while the arm is close to the body in a natural position, is that a handball offense?",
+    "expected_law_numbers": [
+      "12"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "12",
+      "12",
+      "11",
+      "13",
+      "16"
+    ],
+    "precision": 0.4,
+    "recall": 1.0,
+    "cited_laws": [
+      "12"
+    ],
+    "answer": "No, it is not an offense. Not every touch of a player's hand/arm with the ball is an offense. An offense occurs if a player deliberately touches the ball or makes their body unnaturally bigger, which is defined as a position not justifiable by the player's body movement for that specific situation (Law 12).",
+    "answerable": true,
+    "retry_count": 1,
+    "citation_overlap": true,
+    "citation_exact": true,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q12",
+    "category": "ambiguous",
+    "question": "Is a player in an offside position automatically penalized just for standing there?",
+    "expected_law_numbers": [
+      "11"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "13",
+      "10",
+      "11",
+      "3",
+      "12"
+    ],
+    "precision": 0.2,
+    "recall": 1.0,
+    "cited_laws": [
+      "11"
+    ],
+    "answer": "The provided text does not state that a player is automatically penalized for being in an offside position; it only outlines the consequences when an 'offside offence' occurs (Law 11).",
+    "answerable": false,
+    "retry_count": 0,
+    "citation_overlap": true,
+    "citation_exact": true,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q13",
+    "category": "ambiguous",
+    "question": "Does the goalkeeper count as the last defender for offside purposes if they have advanced out of the penalty area?",
+    "expected_law_numbers": [
+      "11"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "14",
+      "6",
+      "5",
+      "8",
+      "5"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q14",
+    "category": "ambiguous",
+    "question": "Can the video assistant referee overturn a referee's judgment call on whether a foul was careless or reckless?",
+    "expected_law_numbers": [
+      "5"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "6",
+      "12",
+      "6",
+      "12",
+      "10"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know.",
+    "answerable": false,
+    "retry_count": 0,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q15",
+    "category": "ambiguous",
+    "question": "Is denying an obvious goal-scoring opportunity by handball always punished with a straight red card?",
+    "expected_law_numbers": [
+      "12"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "11",
+      "12",
+      "12",
+      "2",
+      "9"
+    ],
+    "precision": 0.4,
+    "recall": 1.0,
+    "cited_laws": [
+      "12"
+    ],
+    "answer": "No. A player is cautioned if they deny an opposing team a goal or an obvious goal-scoring opportunity by committing a non-deliberate handball offence where the referee awards a penalty kick (Law 12). Additionally, a player is cautioned for denying an opponent an obvious goal-scoring opportunity by committing an offence that was an attempt to play the ball or a challenge for the ball, if the referee awards a penalty kick (Law 12).",
+    "answerable": true,
+    "retry_count": 0,
+    "citation_overlap": true,
+    "citation_exact": true,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q16",
+    "category": "ambiguous",
+    "question": "If a shot deflects unpredictably off a teammate and then strikes an attacker's hand, is that automatically a handball offense?",
+    "expected_law_numbers": [
+      "12"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "2",
+      "9",
+      "11",
+      "17",
+      "8"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q17",
+    "category": "ambiguous",
+    "question": "What happens if a penalty kick is scored but the goalkeeper is found to have encroached off the goal line before the kick was taken?",
+    "expected_law_numbers": [
+      "14"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "16",
+      "13",
+      "14",
+      "11",
+      "14"
+    ],
+    "precision": 0.4,
+    "recall": 1.0,
+    "cited_laws": [],
+    "answer": "I don't know.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q18",
+    "category": "ambiguous",
+    "question": "If the ball rebounds into play off the referee and a team scores, does the goal count?",
+    "expected_law_numbers": [
+      "9"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "10",
+      "17",
+      "16",
+      "6",
+      "8"
+    ],
+    "precision": 0.0,
+    "recall": 0.0,
+    "cited_laws": [],
+    "answer": "I don't know.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": false,
+    "citation_exact": false,
+    "answerability_correct": false,
+    "llm_error": false,
+    "failure_mode": "over_refusal"
+  },
+  {
+    "id": "q19",
+    "category": "ambiguous",
+    "question": "Can a team be awarded an indirect free kick for a dangerous play that doesn't involve any physical contact?",
+    "expected_law_numbers": [
+      "12"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "12",
+      "4",
+      "12",
+      "13",
+      "4"
+    ],
+    "precision": 0.4,
+    "recall": 1.0,
+    "cited_laws": [
+      "12",
+      "13"
+    ],
+    "answer": "Yes. Playing in a dangerous manner includes 'preventing a nearby opponent from playing the ball for fear of injury,' and an indirect free kick is awarded for an offence committed by a player (Law 12, Law 13).",
+    "answerable": true,
+    "retry_count": 0,
+    "citation_overlap": true,
+    "citation_exact": false,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q20",
+    "category": "ambiguous",
+    "question": "Is a player considered offside if they receive the ball directly from a throw-in?",
+    "expected_law_numbers": [
+      "11"
+    ],
+    "expected_answerable": true,
+    "retrieved_law_numbers": [
+      "3",
+      "11",
+      "12",
+      "5",
+      "12"
+    ],
+    "precision": 0.2,
+    "recall": 1.0,
+    "cited_laws": [
+      "11"
+    ],
+    "answer": "No, a player is not considered offside if they receive the ball directly from a throw-in.",
+    "answerable": true,
+    "retry_count": 0,
+    "citation_overlap": true,
+    "citation_exact": true,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q21",
+    "category": "unanswerable",
+    "question": "What is the offside rule in ice hockey?",
+    "expected_law_numbers": [],
+    "expected_answerable": false,
+    "retrieved_law_numbers": [
+      "14",
+      "11",
+      "16",
+      "14",
+      "10"
+    ],
+    "precision": null,
+    "recall": null,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": null,
+    "citation_exact": null,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q22",
+    "category": "unanswerable",
+    "question": "How much is a Premier League referee paid per match?",
+    "expected_law_numbers": [],
+    "expected_answerable": false,
+    "retrieved_law_numbers": [
+      "3",
+      "6",
+      "11",
+      "6",
+      "3"
+    ],
+    "precision": null,
+    "recall": null,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": null,
+    "citation_exact": null,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q23",
+    "category": "unanswerable",
+    "question": "What was the final score of the 2022 FIFA World Cup final?",
+    "expected_law_numbers": [],
+    "expected_answerable": false,
+    "retrieved_law_numbers": [
+      "2",
+      "3",
+      "5",
+      "1",
+      "7"
+    ],
+    "precision": null,
+    "recall": null,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": null,
+    "citation_exact": null,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q24",
+    "category": "unanswerable",
+    "question": "What is the shot clock violation rule in basketball?",
+    "expected_law_numbers": [],
+    "expected_answerable": false,
+    "retrieved_law_numbers": [
+      "12",
+      "12",
+      "5",
+      "16",
+      "12"
+    ],
+    "precision": null,
+    "recall": null,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": null,
+    "citation_exact": null,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q25",
+    "category": "unanswerable",
+    "question": "Which player has won the most Ballon d'Or awards?",
+    "expected_law_numbers": [],
+    "expected_answerable": false,
+    "retrieved_law_numbers": [
+      "15",
+      "8",
+      "15",
+      "10",
+      "3"
+    ],
+    "precision": null,
+    "recall": null,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": null,
+    "citation_exact": null,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  },
+  {
+    "id": "q26",
+    "category": "unanswerable",
+    "question": "What jersey number rules apply in the NBA?",
+    "expected_law_numbers": [],
+    "expected_answerable": false,
+    "retrieved_law_numbers": [
+      "3",
+      "5",
+      "10",
+      "14",
+      "4"
+    ],
+    "precision": null,
+    "recall": null,
+    "cited_laws": [],
+    "answer": "I don't know -- I couldn't find anything in the Laws of the Game or the supplementary documents that answers this question.",
+    "answerable": false,
+    "retry_count": 1,
+    "citation_overlap": null,
+    "citation_exact": null,
+    "answerability_correct": true,
+    "llm_error": false,
+    "failure_mode": "none"
+  }
+]
