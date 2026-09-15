@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Raw source PDFs are copyrighted third-party documents (IFAB / FIFA) --
+# not tracked in git. Place your own copies in data/raw/ before running
+# ingestion. See README for sources.
+data/raw/*
+!data/raw/.gitkeep
+
+data/chroma/
+.pytest_cache/
+*.egg-info/
+eval_report.md
+eval_results.json

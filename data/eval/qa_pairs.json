@@ -1,0 +1,35 @@
+{
+  "_note": "Ground truth for Laws-of-the-Game questions uses IFAB's stable Law 1-17 numbering, which has not changed edition to edition. Ground truth for the two 'supplementary_pending' questions cannot be finalized until the FIFA Disciplinary Code and VAR protocol PDFs are supplied and ingested -- they are excluded from headline metrics until then. See README eval section.",
+  "questions": [
+    {"id": "q01", "category": "easy", "question": "How many players are on each team on the field at the start of a match?", "expected_law_numbers": ["3"], "expected_answerable": true},
+    {"id": "q02", "category": "easy", "question": "What is the official length and width range of a football pitch?", "expected_law_numbers": ["1"], "expected_answerable": true},
+    {"id": "q03", "category": "easy", "question": "What is the required circumference of the match ball?", "expected_law_numbers": ["2"], "expected_answerable": true},
+    {"id": "q04", "category": "easy", "question": "How long is a standard match before extra time, in minutes?", "expected_law_numbers": ["7"], "expected_answerable": true},
+    {"id": "q05", "category": "easy", "question": "From what distance is a penalty kick taken?", "expected_law_numbers": ["14"], "expected_answerable": true},
+    {"id": "q06", "category": "easy", "question": "Who has the authority to stop, suspend, or abandon a match?", "expected_law_numbers": ["5"], "expected_answerable": true},
+    {"id": "q07", "category": "easy", "question": "What items of equipment must every player wear during a match?", "expected_law_numbers": ["4"], "expected_answerable": true},
+    {"id": "q08", "category": "easy", "question": "How must a throw-in be performed for it to be legal?", "expected_law_numbers": ["15"], "expected_answerable": true},
+    {"id": "q09", "category": "easy", "question": "How is play restarted when the ball goes out over the goal line, last touched by an attacker, and no goal is scored?", "expected_law_numbers": ["16"], "expected_answerable": true},
+    {"id": "q10", "category": "easy", "question": "From where is a corner kick taken?", "expected_law_numbers": ["17"], "expected_answerable": true},
+    {"id": "q11", "category": "ambiguous", "question": "If the ball accidentally strikes a player's arm while the arm is close to the body in a natural position, is that a handball offense?", "expected_law_numbers": ["12"], "expected_answerable": true, "notes": "Tests nuanced handball interpretation, not just the existence of the rule."},
+    {"id": "q12", "category": "ambiguous", "question": "Is a player in an offside position automatically penalized just for standing there?", "expected_law_numbers": ["11"], "expected_answerable": true, "notes": "Tests the active-involvement nuance of offside."},
+    {"id": "q13", "category": "ambiguous", "question": "Does the goalkeeper count as the last defender for offside purposes if they have advanced out of the penalty area?", "expected_law_numbers": ["11"], "expected_answerable": true},
+    {"id": "q14", "category": "ambiguous", "question": "Can the video assistant referee overturn a referee's judgment call on whether a foul was careless or reckless?", "expected_law_numbers": ["5"], "expected_answerable": true, "notes": "VAR only intervenes on clear/obvious errors in specific categories -- tests whether retrieval finds VAR-authority content."},
+    {"id": "q15", "category": "ambiguous", "question": "Is denying an obvious goal-scoring opportunity by handball always punished with a straight red card?", "expected_law_numbers": ["12"], "expected_answerable": true, "notes": "Tests the genuine-attempt-to-play-the-ball exception."},
+    {"id": "q16", "category": "ambiguous", "question": "If a shot deflects unpredictably off a teammate and then strikes an attacker's hand, is that automatically a handball offense?", "expected_law_numbers": ["12"], "expected_answerable": true},
+    {"id": "q17", "category": "ambiguous", "question": "What happens if a penalty kick is scored but the goalkeeper is found to have encroached off the goal line before the kick was taken?", "expected_law_numbers": ["14"], "expected_answerable": true},
+    {"id": "q18", "category": "ambiguous", "question": "If the ball rebounds into play off the referee and a team scores, does the goal count?", "expected_law_numbers": ["9"], "expected_answerable": true, "notes": "Edge case around the referee being deemed part of the field of play."},
+    {"id": "q19", "category": "ambiguous", "question": "Can a team be awarded an indirect free kick for a dangerous play that doesn't involve any physical contact?", "expected_law_numbers": ["12"], "expected_answerable": true},
+    {"id": "q20", "category": "ambiguous", "question": "Is a player considered offside if they receive the ball directly from a throw-in?", "expected_law_numbers": ["11"], "expected_answerable": true, "notes": "Tests the throw-in exception to offside."},
+    {"id": "q21", "category": "unanswerable", "question": "What is the offside rule in ice hockey?", "expected_law_numbers": [], "expected_answerable": false},
+    {"id": "q22", "category": "unanswerable", "question": "How much is a Premier League referee paid per match?", "expected_law_numbers": [], "expected_answerable": false},
+    {"id": "q23", "category": "unanswerable", "question": "What was the final score of the 2022 FIFA World Cup final?", "expected_law_numbers": [], "expected_answerable": false},
+    {"id": "q24", "category": "unanswerable", "question": "What is the shot clock violation rule in basketball?", "expected_law_numbers": [], "expected_answerable": false},
+    {"id": "q25", "category": "unanswerable", "question": "Which player has won the most Ballon d'Or awards?", "expected_law_numbers": [], "expected_answerable": false},
+    {"id": "q26", "category": "unanswerable", "question": "What jersey number rules apply in the NBA?", "expected_law_numbers": [], "expected_answerable": false}
+  ],
+  "supplementary_pending": [
+    {"id": "s01", "category": "ambiguous", "question": "During a VAR review for a potential offside, what exact moment is used to freeze the offside line?", "expected_law_numbers": null, "expected_answerable": true, "notes": "Ground truth pending VAR protocol document."},
+    {"id": "s02", "category": "easy", "question": "How many match suspensions result from the automatic accumulation of yellow cards under the FIFA Disciplinary Code?", "expected_law_numbers": null, "expected_answerable": true, "notes": "Ground truth pending FIFA Disciplinary Code document."}
+  ]
+}

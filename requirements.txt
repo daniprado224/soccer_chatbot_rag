@@ -1,0 +1,29 @@
+# Core RAG pipeline
+langchain==1.4.0
+langchain-core==1.6.3
+langgraph==1.2.11
+langchain-chroma==1.1.0
+chromadb==1.5.9
+anthropic==1.5.0
+
+# Embeddings (default backend: local spaCy word vectors, no API cost)
+spacy==3.8.16
+en-core-web-md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl
+numpy==2.4.6
+
+# Optional embeddings backend (requires network access to api.openai.com,
+# which is blocked in the sandbox this repo was built in -- untested here)
+# langchain-openai==...
+
+# PDF parsing
+pypdf==6.18.1
+pdfplumber==0.11.10
+
+# Config / API
+python-dotenv==1.2.3
+fastapi==0.141.1
+uvicorn==0.53.0
+pydantic==2.13.5
+
+# Tests / eval
+pytest==9.1.1
