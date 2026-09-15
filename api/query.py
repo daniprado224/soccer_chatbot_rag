@@ -81,6 +81,22 @@ def query():
             }
         ), 503
 
+    # grading_error/generation_error mean an underlying call broke (after
+    # retries -- see src/llm.py's 503 handling) and the pipeline failed
+    # closed, NOT that it genuinely searched the corpus and found nothing.
+    # Without this check, both cases render as the identical "I don't
+    # know," which reads to a user as "this tool doesn't work" when the
+    # real story is "Gemini had a bad moment, try again." Distinguishing
+    # them is a users'-trust issue, not a cosmetic one.
+    infra_error = bool(result.get("grading_error") or result.get("generation_error"))
+    if not result["answerable"] and infra_error:
+        return jsonify(
+            {
+                "error": "temporarily_unavailable",
+                "message": "Google Gemini appears to be down or overloaded right now. Please try again in a moment.",
+            }
+        ), 503
+
     quota_store.record_question()
 
     # The real ranking the pipeline itself just used to decide this answer
@@ -104,9 +120,9 @@ def query():
     }
 
     # Only spend the extra LLM call generating/re-scoring alternate
-    # phrasings when the pipeline actually failed to answer -- see
-    # src/query_diagnostics.py for why, and why this can never itself
-    # break the real answer if it fails.
+    # phrasings when the pipeline genuinely searched and found nothing --
+    # suggesting a "better phrasing" makes no sense when the real cause
+    # was an outage (checked above), and would likely fail the same way.
     if not result["answerable"]:
         suggestion = suggest_better_phrasing(_store, question, DEFAULT_MODEL)
         if suggestion:
