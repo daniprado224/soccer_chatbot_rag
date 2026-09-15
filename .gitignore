@@ -15,3 +15,5 @@ data/chroma/
 *.egg-info/
 # eval_report.md and eval_results.json ARE committed -- they're the real
 # eval run's output, referenced directly from README.md.
+.vercel
+.env*
