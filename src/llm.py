@@ -123,7 +123,7 @@ def _throttle_gemini() -> None:
 def _call_gemini(system: str, user: str, model: str, max_tokens: int) -> str:
     from google import genai
     from google.genai import types
-    from google.genai.errors import ClientError
+    from google.genai.errors import ClientError, ServerError
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY", "").strip())  # free tier via aistudio.google.com
     config = types.GenerateContentConfig(
@@ -136,18 +136,32 @@ def _call_gemini(system: str, user: str, model: str, max_tokens: int) -> str:
         thinking_config=types.ThinkingConfig(thinking_budget=0),
     )
 
-    for attempt in range(2):
+    max_attempts = 3
+    for attempt in range(max_attempts):
         _throttle_gemini()
         try:
             resp = client.models.generate_content(model=model, contents=user, config=config)
             return resp.text or ""
         except ClientError as e:
             if "RESOURCE_EXHAUSTED" in str(e):
-                if attempt == 0:
+                if attempt < max_attempts - 1:
                     time.sleep(15)  # one retry past a transient per-minute cap; a daily cap will still raise
                     continue
                 retry_after, scope = _parse_quota_exhaustion(str(e))
                 raise GeminiQuotaExceeded(retry_after, scope) from e
+            raise
+        except ServerError:
+            # A real occurrence, not hypothetical: "503 UNAVAILABLE ...
+            # This model is currently experiencing high demand. Spikes in
+            # demand are usually temporary." -- Google's own wording says
+            # to retry, so a single transient 5xx must not be treated the
+            # same as the model genuinely finding nothing relevant. Without
+            # this, a perfectly answerable question (verified working
+            # moments earlier) came back "I don't know" purely because one
+            # grading call landed on a bad moment for Google's servers.
+            if attempt < max_attempts - 1:
+                time.sleep(3 * (attempt + 1))
+                continue
             raise
 
 
