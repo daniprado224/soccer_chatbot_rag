@@ -43,22 +43,7 @@ _graph = RetrievalGraph(_store)
 
 @app.get("/api/status")
 def status():
-    payload = quota_store.get_status()
-    # TEMPORARY debug block while diagnosing a live LLM_BACKEND resolution
-    # issue on Vercel -- safe to expose (booleans/short strings, no secret
-    # values), remove once resolved.
-    import os
-
-    from src import llm
-
-    payload["debug"] = {
-        "llm_backend_resolved": llm.LLM_BACKEND,
-        "llm_backend_raw_env": repr(os.getenv("LLM_BACKEND")),
-        "default_model": llm.DEFAULT_MODEL,
-        "has_anthropic_key": bool(os.getenv("ANTHROPIC_API_KEY", "").strip()),
-        "has_gemini_key": bool(os.getenv("GEMINI_API_KEY", "").strip()),
-    }
-    return jsonify(payload)
+    return jsonify(quota_store.get_status())
 
 
 @app.post("/api/query")
