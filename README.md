@@ -124,21 +124,51 @@ note at the top of that file. Do not treat those two as scored until then.
 
 ```bash
 python -m src.ingestion \
-  --pdf data/raw/laws_of_the_game_2025_26.pdf --doc-type laws_of_the_game \
+  --pdf "data/raw/Laws of the Game 2026_27_double pages.pdf" --doc-type laws_of_the_game \
+  --source-doc "IFAB Laws of the Game 2026/27" \
   --pdf data/raw/fifa_disciplinary_code.pdf   --doc-type disciplinary_code \
   --pdf data/raw/var_protocol.pdf             --doc-type var_protocol \
   --dump-chunks data/processed/chunks.json
 ```
 
-Each `--doc-type` selects a `DocProfile` (a regex for that document's own
-rule-numbering convention: `Law N` / `Article N` / `Section N`) used to
-split the document — see `DOC_PROFILES` in `src/ingestion.py`. The
-`--dump-chunks` output is worth eyeballing after a real ingestion run: the
-heading-detection heuristic (bold/oversized font, with a text-shape
-fallback) was written and unit-tested against synthetic fixtures, not
-against the real PDF's actual font metrics, so it may need a pass of
-tuning once you see how the real document's fonts come through
-`pdfplumber`.
+Only the first `--pdf`/`--doc-type` pair has actually been run against a
+real document so far (the disciplinary code and VAR protocol PDFs are
+still pending — see [Data](#data)). It required two rounds of real tuning
+that the synthetic-fixture unit tests couldn't have caught, worth knowing
+about if you ingest a different edition or a differently-typeset document:
+
+1. **This PDF is a "double pages" print-spread export**: each physical PDF
+   page holds two facing book pages side by side (839×595pt, landscape),
+   not one column of text. Grouping words into lines by y-position alone
+   (the original approach) interleaved both halves' text into gibberish.
+   `_find_column_split` detects the gutter (the widest horizontal word gap
+   near the page's midline) and reads left-column-then-right-column
+   instead.
+2. **Per-Law chapter-opener headings turned out to be rasterized title
+   art**, not real text — `pdfplumber` extracts zero words for them, so
+   `unit_regex`-based detection (matching a "Law N – Title" text line)
+   only ever found 2 of the document's 17 Laws. What *does* repeat
+   reliably is IFAB's own running footer, `Laws of the Game 2026/27 | Law
+   3 | The Players 61`, present on nearly every content page. `DocProfile.
+   footer_regex` + per-page forward-fill (capped at a 4-page gap, since real
+   gaps between footer sightings never exceed 2 — see `_footer_law_by_page`)
+   uses that instead, and correctly recovered all 17 Laws. `unit_regex`
+   is kept as the fallback path for documents where no footer_regex
+   matches (e.g. the disciplinary code and VAR protocol, whose real page
+   layout isn't known yet).
+3. This edition also has a ~35-page "Additional instructions" appendix
+   after Law 17 with no footer at all — the gap-capped forward-fill
+   correctly stops attributing it to Law 17 rather than mislabeling all of
+   it, and it's currently dropped rather than ingested unlabeled. It's
+   real IFAB guidance (assistant referee positioning, etc.) that could be
+   worth ingesting under its own `doc_type` later; out of scope for now.
+4. A handful of near-empty fragments (isolated diagram dimension labels,
+   stray bullet glyphs that pick up a heading-styled font) are filtered by
+   `MIN_CHUNK_CHARS` rather than kept as junk chunks.
+
+Net result on the real PDF: **144 chunks across all 17 Laws** (see
+`data/processed/chunks.json`), each tagged with its real `law_number`,
+`law_title`, and `section_title`.
 
 ## Querying
 
@@ -211,14 +241,26 @@ _pending real ingestion + eval run_
 
 - spaCy averaged-word-vector embeddings will noticeably underperform a real
   sentence embedding model on paraphrased or compositional questions (e.g.
-  "the guy who came off the bench" vs "substitute") — the eval report's
-  retrieval precision/recall numbers are the honest measurement of that
-  gap once run, not a guess.
-- The section-heading detection in `ingestion.py` is heuristic
-  (bold/oversized font, or a text-shape fallback) and was validated against
-  synthetic fixtures in `tests/test_ingestion.py`, not the real PDF —
-  expect to tune `_looks_like_heading` and the bold/size thresholds after
-  a first real ingestion run.
+  "the guy who came off the bench" vs "substitute"). This isn't theoretical:
+  a manual spot check against the real ingested corpus already shows it —
+  a query for "where is a corner kick taken from?" doesn't return the
+  correct Law 17 chunk in its top 3 at all, even though that chunk exists
+  and clearly answers the question. The eval report's retrieval
+  precision/recall numbers (once a real eval run happens) will quantify
+  this properly instead of one spot check.
+- Chapter-opener "Law N" headings in the real PDF are rasterized title art
+  with no extractable text (see [Ingestion](#ingestion)), so law-boundary
+  detection is driven by IFAB's running footer text, not an in-body
+  heading. This is specific to this document/edition's typesetting — a
+  different edition or the disciplinary code/VAR protocol PDFs may not
+  have an equivalent footer, in which case ingestion falls back to the
+  original heading-based `unit_regex` detection, which is unverified
+  against a real document of that kind yet.
+- The ~35-page appendix after Law 17 in this edition is currently dropped
+  entirely rather than ingested (see [Ingestion](#ingestion)) — questions
+  whose answer lives only in that appendix will correctly get "I don't
+  know," but that's a corpus gap, not a retrieval or generation failure,
+  and isn't distinguished as such in the failure-attribution buckets.
 - The relevance grader and query rewriter are themselves LLM calls, so
   their own error rate (mis-grading a relevant chunk as irrelevant, or a
   bad rewrite) is a source of noise in the generation metrics that this
