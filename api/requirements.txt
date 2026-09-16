@@ -10,5 +10,13 @@ google-genai==2.23.0
 spacy==3.8.16
 en-core-web-md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl
 numpy==2.4.6
+
+# Second embedding backend ("minilm") -- ONNX Runtime instead of PyTorch to
+# keep this scoped-to-the-function bundle small (see
+# src/embeddings.py's SentenceTransformerEmbeddings docstring). Only pulled
+# in at all if a request actually asks for embedding_model=minilm; if
+# data/processed/embeddings_minilm.npy was never built/deployed, this
+# backend cleanly 503s instead of being used.
+fastembed==0.8.0
 python-dotenv==1.2.3
 requests==2.33.1

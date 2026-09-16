@@ -227,6 +227,10 @@ def main():
     parser.add_argument("--top-k", type=int, default=None, help="Defaults to RETRIEVAL_TOP_K env var")
     parser.add_argument("--persist", default=None)
     parser.add_argument("--collection", default=None)
+    parser.add_argument(
+        "--embedding-backend", default=None, choices=["spacy", "minilm", "openai"],
+        help="Override EMBEDDING_BACKEND for this run -- e.g. 'minilm' to compare against the spaCy default.",
+    )
     parser.add_argument("--out", default="eval_report.md")
     parser.add_argument("--json-out", default="eval_results.json")
     parser.add_argument(
@@ -238,7 +242,7 @@ def main():
     from .graph import TOP_K, load_graph
 
     top_k = args.top_k or TOP_K
-    graph = load_graph(args.persist, args.collection)
+    graph = load_graph(args.persist, args.collection, args.embedding_backend)
     qa_pairs = load_qa_pairs(Path(args.qa))
     if args.limit:
         qa_pairs = qa_pairs[: args.limit]

@@ -4,7 +4,7 @@
       "src": "api/query.py",
       "use": "@vercel/python",
       "config": {
-        "includeFiles": ["data/processed/chunks.json", "data/processed/embeddings.npy", "src/**"]
+        "includeFiles": ["data/processed/chunks.json", "data/processed/embeddings_*.npy", "src/**"]
       }
     },
     { "src": "public/**", "use": "@vercel/static" }
