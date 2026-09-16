@@ -1,111 +1,46 @@
-"""Tests for api/query.py's error-vs-genuine-refusal distinction and its
-embedding_model routing (the "phase 2" spacy/minilm switch).
+"""Smoke tests for the actual deployed entrypoint files (api/query.py and
+api/minilm/query.py), as opposed to tests/test_webapp.py's thorough
+mocked-graph tests against the shared src/webapp.py factory.
 
-Monkeypatches _get_graph() to hand back a fake graph object whose query()
-returns a canned state, rather than mocking the LLM/vectorstore underneath
-it -- this is testing the Flask route's own logic (does it correctly read
-grading_error/generation_error off the graph's result, does it route to
-the right embedding backend), not the graph itself.
+These import the REAL modules (no mocking): api/query.py builds a real
+spaCy graph against this repo's actual data/processed/ artifacts (same
+as always ran in this sandbox), and api/minilm/query.py builds against
+whatever's actually available -- which in this sandbox is nothing
+(data/processed/embeddings_minilm.npy doesn't exist here; see
+src/embeddings.py's SentenceTransformerEmbeddings docstring for why), so
+it should come up cleanly with its backend marked unavailable rather
+than crash at import time. The point of these tests is exactly that:
+catching import-time/route-wiring regressions in the split into two
+functions, not re-testing logic tests/test_webapp.py already covers.
 """
-import api.query as api_query
+import importlib
 
 
-def _fake_state(**overrides):
-    base = {
-        "answer": "I don't know.",
-        "cited_laws": [],
-        "answerable": False,
-        "retry_count": 1,
-        "retrieved": [],
-        "grading_error": False,
-        "generation_error": False,
-        "quota_info": None,
-    }
-    base.update(overrides)
-    return base
+def test_spacy_entrypoint_serves_the_unprefixed_api_routes():
+    # Deliberately doesn't POST a real question through /api/query here --
+    # that would fire a real Gemini API call (needs a key, costs money,
+    # and would make this test flaky/network-dependent). Route wiring is
+    # exactly what this test is for; query() behavior is already covered
+    # thoroughly, with the LLM mocked, in tests/test_webapp.py.
+    import api.query as api_query
 
-
-def _fake_graph(state, vectorstore=None):
-    return type("G", (), {"query": staticmethod(lambda q: state), "vectorstore": vectorstore})()
-
-
-def test_infra_error_returns_503_with_gemini_down_message(monkeypatch):
-    monkeypatch.setattr(api_query, "_get_graph", lambda model: _fake_graph(_fake_state(grading_error=True)))
-    monkeypatch.setattr(api_query.quota_store, "get_status", lambda: {"available": True})
-
+    importlib.reload(api_query)  # in case an earlier test left module state
     client = api_query.app.test_client()
-    resp = client.post("/api/query", json={"question": "how many players are on each team?"})
 
-    assert resp.status_code == 503
-    data = resp.get_json()
-    assert data["error"] == "temporarily_unavailable"
-    assert "Gemini" in data["message"]
+    assert client.get("/api/status").status_code == 200
+    assert any(rule.rule == "/api/query" for rule in api_query.app.url_map.iter_rules())
 
 
-def test_genuine_no_match_is_not_treated_as_an_infra_error(monkeypatch):
-    monkeypatch.setattr(api_query, "_get_graph", lambda model: _fake_graph(_fake_state()))
-    monkeypatch.setattr(api_query.quota_store, "get_status", lambda: {"available": True})
-    monkeypatch.setattr(api_query.quota_store, "record_question", lambda: None)
-    monkeypatch.setattr(api_query, "suggest_better_phrasing", lambda *a, **k: None)
+def test_minilm_entrypoint_serves_the_prefixed_routes_and_503s_cleanly():
+    import api.minilm.query as api_minilm_query
 
-    client = api_query.app.test_client()
-    resp = client.post("/api/query", json={"question": "what is an offside?"})
+    importlib.reload(api_minilm_query)
+    client = api_minilm_query.app.test_client()
 
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["answerable"] is False
-    assert data["answer"] == "I don't know."
-    assert data["embedding_model"] == "spacy"
-
-
-def test_generation_error_also_treated_as_infra_error(monkeypatch):
-    monkeypatch.setattr(api_query, "_get_graph", lambda model: _fake_graph(_fake_state(generation_error=True)))
-    monkeypatch.setattr(api_query.quota_store, "get_status", lambda: {"available": True})
-
-    client = api_query.app.test_client()
-    resp = client.post("/api/query", json={"question": "q"})
-
-    assert resp.status_code == 503
-    assert resp.get_json()["error"] == "temporarily_unavailable"
-
-
-def test_query_routes_to_the_requested_embedding_model(monkeypatch):
-    requested = []
-
-    def fake_get_graph(model):
-        requested.append(model)
-        return _fake_graph(_fake_state(answer="hi", answerable=True))
-
-    monkeypatch.setattr(api_query, "_get_graph", fake_get_graph)
-    monkeypatch.setattr(api_query.quota_store, "get_status", lambda: {"available": True})
-    monkeypatch.setattr(api_query.quota_store, "record_question", lambda: None)
-
-    client = api_query.app.test_client()
-    resp = client.post("/api/query", json={"question": "q", "embedding_model": "minilm"})
-
-    assert resp.status_code == 200
-    assert resp.get_json()["embedding_model"] == "minilm"
-    assert requested == ["minilm"]
-
-
-def test_query_rejects_unknown_embedding_model(monkeypatch):
-    monkeypatch.setattr(api_query.quota_store, "get_status", lambda: {"available": True})
-
-    client = api_query.app.test_client()
-    resp = client.post("/api/query", json={"question": "q", "embedding_model": "gpt5"})
-
-    assert resp.status_code == 400
-
-
-def test_query_returns_503_when_embedding_model_not_built_on_this_deployment(monkeypatch):
-    def fake_get_graph(model):
-        raise RuntimeError(f"'{model}' embedding backend isn't set up on this deployment")
-
-    monkeypatch.setattr(api_query, "_get_graph", fake_get_graph)
-    monkeypatch.setattr(api_query.quota_store, "get_status", lambda: {"available": True})
-
-    client = api_query.app.test_client()
-    resp = client.post("/api/query", json={"question": "q", "embedding_model": "minilm"})
-
+    assert client.get("/api/minilm/status").status_code == 200
+    resp = client.post("/api/minilm/query", json={"question": "what is an offside?"})
+    # This sandbox never built data/processed/embeddings_minilm.npy (needs
+    # real network access to huggingface.co -- see README), so this must
+    # 503 with a clear message, not 500/crash.
     assert resp.status_code == 503
     assert resp.get_json()["error"] == "embedding_model_unavailable"

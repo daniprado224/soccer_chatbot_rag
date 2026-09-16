@@ -355,7 +355,11 @@ async function ask() {
   answerArea.innerHTML = "";
 
   try {
-    const res = await fetch("/api/query", {
+    // spacy and minilm are separate Vercel functions (kept the deployed
+    // bundle under the 500MB function size limit -- see README), so
+    // which URL gets hit IS the model selection, not just a body field.
+    const endpoint = selectedModel === "minilm" ? "/api/minilm/query" : "/api/query";
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, embedding_model: selectedModel }),

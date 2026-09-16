@@ -1,22 +1,27 @@
-# Scoped to what api/query.py actually needs at request time -- deliberately
-# excludes chromadb, pdfplumber, pytest, fastapi/uvicorn from the root
-# requirements.txt (those are ingestion/eval/test tooling, not needed by
-# the deployed function, and just add cold-start weight).
+# Scoped to what api/query.py (the spaCy-backend function) actually needs
+# at request time -- deliberately excludes chromadb, pdfplumber, pytest,
+# fastapi/uvicorn from the root requirements.txt (ingestion/eval/test
+# tooling, not needed by the deployed function, and just add cold-start
+# weight).
 #
 # `anthropic` is deliberately NOT listed here (unlike the root
 # requirements.txt): this deployment runs LLM_BACKEND=gemini in
 # production (Anthropic's API has no free tier and this account has no
-# purchased credits -- see src/llm.py), so the Claude SDK is 17MB of
-# dead weight in the bundle it's never called. Adding fastembed for the
-# minilm embedding backend pushed the total bundle to 506.85MB, just
-# over Vercel's 500MB function size limit -- removing this was the
-# single biggest, lowest-risk trim available.
+# purchased credits -- see src/llm.py), so the Claude SDK is dead weight
+# in a bundle it's never called from.
 #
 # IMPORTANT: if you ever set LLM_BACKEND=claude on THIS Vercel
 # deployment, re-add anthropic here first -- otherwise `_call_claude()`'s
 # `import anthropic` will fail at request time (caught by the existing
 # error handling, but it'll misleadingly say "Google Gemini appears to
 # be down" even though the real problem is a missing dependency).
+#
+# `fastembed` is NOT listed here either, even though this repo supports a
+# minilm embedding backend -- that backend is its own separate Vercel
+# function (api/minilm/query.py + api/minilm/requirements.txt), so THIS
+# function never pays for fastembed/onnxruntime's weight. See
+# src/webapp.py's docstring: bundling both backends into one function
+# pushed it over Vercel's 500MB function size limit.
 flask==3.1.3
 langchain-core==1.6.3
 langgraph==1.2.11
@@ -24,13 +29,5 @@ google-genai==2.23.0
 spacy==3.8.16
 en-core-web-md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl
 numpy==2.4.6
-
-# Second embedding backend ("minilm") -- ONNX Runtime instead of PyTorch to
-# keep this scoped-to-the-function bundle small (see
-# src/embeddings.py's SentenceTransformerEmbeddings docstring). Only pulled
-# in at all if a request actually asks for embedding_model=minilm; if
-# data/processed/embeddings_minilm.npy was never built/deployed, this
-# backend cleanly 503s instead of being used.
-fastembed==0.8.0
 python-dotenv==1.2.3
 requests==2.33.1
