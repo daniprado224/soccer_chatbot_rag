@@ -140,7 +140,7 @@ Retrieval metrics (precision@k / recall@k) are measured before the LLM grader ru
 
 **LLM backend**: Claude by default (`LLM_BACKEND=claude`), Gemini as a free alternative (`LLM_BACKEND=gemini`). Anthropic's API has no free tier — Gemini's free tier via Google AI Studio does, at the cost of tighter rate limits (as low as 15 requests/minute on some models) and lower generation quality than Claude. Both backends share one interface (`src/llm.py`), so switching is a one-line env var change; the eval numbers above are specific to whichever backend produced them.
 
-**Deployment**: the web app uses an in-memory vector store instead of the local Chroma index, since Vercel's serverless functions don't have persistent disk. With ~150 chunks this is fast and simple — no hosted vector DB needed. A shared usage tracker (Upstash Redis) shows real-time availability across all visitors, since everyone hits the same free-tier API key.
+**Deployment**: the web app uses an in-memory vector store instead of the local Chroma index, since Vercel's serverless functions don't have persistent disk. With ~150 chunks this is fast and simple — no hosted vector DB needed. A shared usage tracker (Upstash Redis) shows real-time availability across all visitors, since everyone hits the same free-tier API key. `api/requirements.txt` (scoped separately from the root `requirements.txt`) deliberately omits the `anthropic` SDK — the deployed instance runs `LLM_BACKEND=gemini` exclusively, so bundling Claude's client would be 17MB of dead weight, and adding `fastembed` for the minilm backend pushed the function right up against Vercel's 500MB size limit.
 
 ## Known limitations
 

@@ -2,10 +2,24 @@
 # excludes chromadb, pdfplumber, pytest, fastapi/uvicorn from the root
 # requirements.txt (those are ingestion/eval/test tooling, not needed by
 # the deployed function, and just add cold-start weight).
+#
+# `anthropic` is deliberately NOT listed here (unlike the root
+# requirements.txt): this deployment runs LLM_BACKEND=gemini in
+# production (Anthropic's API has no free tier and this account has no
+# purchased credits -- see src/llm.py), so the Claude SDK is 17MB of
+# dead weight in the bundle it's never called. Adding fastembed for the
+# minilm embedding backend pushed the total bundle to 506.85MB, just
+# over Vercel's 500MB function size limit -- removing this was the
+# single biggest, lowest-risk trim available.
+#
+# IMPORTANT: if you ever set LLM_BACKEND=claude on THIS Vercel
+# deployment, re-add anthropic here first -- otherwise `_call_claude()`'s
+# `import anthropic` will fail at request time (caught by the existing
+# error handling, but it'll misleadingly say "Google Gemini appears to
+# be down" even though the real problem is a missing dependency).
 flask==3.1.3
 langchain-core==1.6.3
 langgraph==1.2.11
-anthropic==1.5.0
 google-genai==2.23.0
 spacy==3.8.16
 en-core-web-md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl
