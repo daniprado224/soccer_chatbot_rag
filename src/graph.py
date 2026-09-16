@@ -297,28 +297,16 @@ class RetrievalGraph:
         return self.app.invoke(initial)
 
 
-def load_graph(
-    persist_dir: str | None = None, collection: str | None = None, embedding_backend: str | None = None
-) -> RetrievalGraph:
+def load_graph(persist_dir: str | None = None, collection: str | None = None) -> RetrievalGraph:
     from langchain_chroma import Chroma
 
     from .embeddings import get_embeddings
 
     persist_dir = persist_dir or os.getenv("CHROMA_PERSIST_DIR", "./data/chroma")
-    base_collection = collection or os.getenv("CHROMA_COLLECTION", "soccer_laws")
-    # Different embedding backends produce different-dimensional vectors
-    # (300-dim spaCy vs 384-dim minilm), so they can never safely share a
-    # Chroma collection. Only namespace by backend when the caller
-    # explicitly asked for a non-default backend and didn't also pass an
-    # explicit collection name -- otherwise this keeps the exact same
-    # default collection name as before (no surprise rename of anyone's
-    # existing local Chroma index).
-    collection_name = base_collection
-    if embedding_backend and not collection:
-        collection_name = f"{base_collection}_{embedding_backend}"
+    collection = collection or os.getenv("CHROMA_COLLECTION", "soccer_laws")
     store = Chroma(
-        collection_name=collection_name,
-        embedding_function=get_embeddings(embedding_backend),
+        collection_name=collection,
+        embedding_function=get_embeddings(),
         persist_directory=persist_dir,
     )
     return RetrievalGraph(store)

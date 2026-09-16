@@ -12,14 +12,6 @@ spacy==3.8.16
 en-core-web-md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl
 numpy==2.4.6
 
-# Second embedding backend: a real sentence-transformer (all-MiniLM-L6-v2),
-# run via ONNX Runtime instead of PyTorch to stay lightweight. Needs network
-# access to huggingface.co on first use to download model weights -- see
-# src/embeddings.py's SentenceTransformerEmbeddings docstring. NOT exercised
-# end-to-end by this repo's own runs, for the same reason OpenAIEmbeddings
-# below isn't: huggingface.co is blocked in the dev sandbox this was built in.
-fastembed==0.8.0
-
 # Optional embeddings backend (requires network access to api.openai.com,
 # which is blocked in the sandbox this repo was built in -- untested here)
 # langchain-openai==...

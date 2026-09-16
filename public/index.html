@@ -65,21 +65,6 @@
   .tracker .count { color: var(--muted); }
   .tracker .note { color: var(--muted); font-size: 0.82rem; }
 
-  .model-toggle { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
-  .model-option {
-    flex: 1 1 200px; border: 1px solid var(--border); border-radius: 10px;
-    padding: 10px 12px; cursor: pointer; background: transparent;
-  }
-  .model-option input { margin-right: 6px; }
-  .model-option .name { font-weight: 600; font-size: 0.88rem; }
-  .model-option .desc { color: var(--muted); font-size: 0.78rem; margin-top: 3px; display: block; }
-  .model-option.selected { border-color: var(--accent); background: var(--chip-bg); }
-  .model-option.disabled { opacity: 0.5; cursor: not-allowed; }
-  .model-badge {
-    display: inline-block; margin: 0 0 10px; padding: 3px 10px; border-radius: 999px;
-    background: var(--chip-bg); color: var(--chip-ink); font-size: 0.78rem; font-weight: 600;
-  }
-
   .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
     padding: 18px; margin-bottom: 16px;
@@ -163,8 +148,7 @@
       chatbot: it searches the actual rulebook text, has an LLM judge which passages
       are genuinely relevant, retries with a rewritten question if nothing relevant
       turns up, then answers <strong>citing the specific Law number(s)</strong> it used
-      — or says it doesn't know, rather than guessing. Pick an embedding model below to
-      see how much retrieval quality itself matters, independent of the LLM. See the
+      — or says it doesn't know, rather than guessing. See the
       <a href="https://github.com/daniprado224/soccer_chatbot_rag" target="_blank" rel="noopener">README</a>
       for the architecture and a full evaluation report.
     </p>
@@ -183,12 +167,10 @@
       <li>"I don't know" is the correct response for out-of-scope questions.</li>
       <li>This demo runs on Google Gemini's free tier, shared across every visitor (see the tracker above and the README's "Design choices" section).</li>
       <li>Expand "Retrieval ranking" under an answer to see the actual scores used. When it can't answer, it also suggests a rephrasing that scores higher — a higher score means closer wording to the source text, not necessarily a better answer.</li>
-      <li>Pick an embedding model below to compare retrieval quality — spaCy's word vectors reward vocabulary overlap, MiniLM is a real sentence-transformer that captures meaning. The LLM answering is the same either way; only retrieval changes.</li>
     </ol>
   </div>
 
   <div class="card">
-    <div class="model-toggle" id="model-toggle"></div>
     <textarea id="question" placeholder="e.g. Is it a handball if the ball hits a natural arm position?"></textarea>
     <div class="examples" id="examples"></div>
     <button class="ask" id="ask-btn">Ask</button>
@@ -217,36 +199,6 @@ EXAMPLES.forEach((q) => {
   btn.onclick = () => { document.getElementById("question").value = q; };
   examplesEl.appendChild(btn);
 });
-
-const MODEL_INFO = {
-  spacy: { name: "spaCy (word vectors)", desc: "Averaged word vectors. Fast baseline, weaker on paraphrased questions." },
-  minilm: { name: "MiniLM (sentence-transformer)", desc: "Real semantic embeddings — should match differently-worded questions better." },
-};
-let selectedModel = "spacy";
-let availableModels = { spacy: true, minilm: false }; // minilm assumed unavailable until /api/status says otherwise
-
-function renderModelToggle() {
-  const el = document.getElementById("model-toggle");
-  el.innerHTML = Object.keys(MODEL_INFO)
-    .map((key) => {
-      const info = MODEL_INFO[key];
-      const disabled = !availableModels[key];
-      const selected = selectedModel === key;
-      return `<label class="model-option ${selected ? "selected" : ""} ${disabled ? "disabled" : ""}">
-        <input type="radio" name="embedding-model" value="${key}" ${selected ? "checked" : ""} ${disabled ? "disabled" : ""} />
-        <span class="name">${info.name}</span>
-        <span class="desc">${info.desc}${disabled ? " — not deployed on this instance" : ""}</span>
-      </label>`;
-    })
-    .join("");
-  el.querySelectorAll("input[type=radio]").forEach((input) => {
-    input.addEventListener("change", (e) => {
-      selectedModel = e.target.value;
-      renderModelToggle();
-    });
-  });
-}
-renderModelToggle();
 
 function fmtResetTime(iso) {
   try {
@@ -279,16 +231,6 @@ async function refreshTracker() {
     note.textContent = data.tracker_configured
       ? ""
       : "(usage tracker not configured for this deployment)";
-    if (data.embedding_models) {
-      let changed = false;
-      Object.keys(MODEL_INFO).forEach((key) => {
-        const isAvailable = !!(data.embedding_models[key] && data.embedding_models[key].available);
-        if (availableModels[key] !== isAvailable) changed = true;
-        availableModels[key] = isAvailable;
-      });
-      if (!availableModels[selectedModel]) selectedModel = "spacy";
-      if (changed) renderModelToggle();
-    }
   } catch (e) {
     pill.className = "pill bad";
     label.textContent = "Status unknown";
@@ -355,14 +297,10 @@ async function ask() {
   answerArea.innerHTML = "";
 
   try {
-    // spacy and minilm are separate Vercel functions (kept the deployed
-    // bundle under the 500MB function size limit -- see README), so
-    // which URL gets hit IS the model selection, not just a body field.
-    const endpoint = selectedModel === "minilm" ? "/api/minilm/query" : "/api/query";
-    const res = await fetch(endpoint, {
+    const res = await fetch("/api/query", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, embedding_model: selectedModel }),
+      body: JSON.stringify({ question }),
     });
     const data = await res.json();
 
@@ -373,11 +311,8 @@ async function ask() {
       const chips = (data.cited_laws || [])
         .map((n) => `<span class="law-chip">Law ${n}</span>`)
         .join("");
-      const modelInfo = MODEL_INFO[data.embedding_model];
-      const modelBadge = modelInfo ? `<span class="model-badge">${modelInfo.name}</span>` : "";
       answerArea.innerHTML = `
         <div class="${cls}">
-          ${modelBadge}
           <div class="answer-text"></div>
           <div class="law-chips">${chips}</div>
           ${renderSuggestion(data.suggestion)}
